@@ -63,7 +63,8 @@ app = Agent(
     node_id="meta_deep_research",
     agentfield_server=os.getenv('AGENTFIELD_SERVER', 'http://localhost:8080'),
     version="3.0.0",
-    dev_mode=True,
+    dev_mode=os.getenv("AGENTFIELD_DEV_MODE", "false").strip().lower()
+    in {"1", "true", "yes", "on"},
     callback_url=os.getenv("AGENT_CALLBACK_URL", None),
     api_key=os.getenv("AGENTFIELD_API_KEY", None),
     ai_config=ai_config,
