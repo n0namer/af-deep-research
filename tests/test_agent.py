@@ -1,53 +1,31 @@
-"""
-Tests for the deep-research-agent Agent.
-Generated on 2025-07-09 16:20:06 EDT
-"""
+"""Smoke tests for the current Deep Research AgentField surface."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from agentfield.execution_context import ExecutionContext
-from agent.agent import deepresearchagentAgent, ExampleReasonerInput, ExampleSkillInput
+from pydantic import BaseModel
 
-@pytest.fixture
-def mock_agent():
-    """Fixture to provide a mock instance of deepresearchagentAgent."""
-    agent = deepresearchagentAgent()
-    agent.context = MagicMock(spec=ExecutionContext)
-    agent.context.get_config.return_value = "mock_api_key"
-    return agent
+import main
 
-@pytest.mark.asyncio
-async def test_example_reasoner_success(mock_agent):
-    """Test example_reasoner with a successful message processing."""
-    input_data = ExampleReasonerInput(message="hello world")
-    
-    # Mock context.call_skill if it's used within the reasoner
-    mock_agent.context.call_skill = AsyncMock(return_value={"status": "skill_done"})
 
-    result = await mock_agent.example_reasoner(mock_agent.context, input_data)
+def test_agent_identity() -> None:
+    assert main.app.node_id == "meta_deep_research"
+    assert main.app.version == "3.0.0"
 
-    assert result.processed_message == "PROCESSED: HELLO WORLD"
-    assert result.status == "success"
-    mock_agent.context.get_config.assert_called_with("my_service.api_key", "default_api_key")
 
-@pytest.mark.asyncio
-async def test_example_skill_success(mock_agent):
-    """Test example_skill with successful data processing."""
-    input_data = ExampleSkillInput(data={"key": "test_value"})
-    
-    result = await mock_agent.example_skill(mock_agent.context, input_data)
+def test_current_reasoner_surface_is_importable() -> None:
+    assert callable(main.merge_entity_pair)
+    assert callable(main.detect_entity_duplicates_batch)
+    assert callable(main.detect_relationship_duplicates_batch)
+    assert callable(main.merge_relationship_pair)
 
-    assert result.result == "Skill processed data: test_value"
-    assert result.success is True
 
-@pytest.mark.asyncio
-async def test_example_skill_no_key(mock_agent):
-    """Test example_skill when 'key' is not present in input data."""
-    input_data = ExampleSkillInput(data={"another_key": "some_value"})
-    
-    result = await mock_agent.example_skill(mock_agent.context, input_data)
+def test_entity_schema_contract() -> None:
+    assert issubclass(main.Entity, BaseModel)
+    entity = main.Entity(name="OpenAI", type="organization", summary="AI research company")
+    assert entity.name == "OpenAI"
+    assert entity.type == "organization"
+    assert entity.summary == "AI research company"
 
-    assert result.result == "Skill processed data: no_key"
-    assert result.success is True
 
-# You can add more tests here for edge cases, error handling, etc.
+def test_merged_entity_schema_contract() -> None:
+    assert issubclass(main.MergedEntity, BaseModel)
+    fields = set(main.MergedEntity.model_fields)
+    assert {"name", "type", "summary"}.issubset(fields)
