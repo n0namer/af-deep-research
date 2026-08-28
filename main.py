@@ -54,6 +54,8 @@ if ollama_base_url:
 
 ai_config = AIConfig(
     model=os.getenv("DEFAULT_MODEL", "openrouter/deepseek/deepseek-chat-v3.1"),
+    api_key=os.getenv("OPENAI_API_KEY") or None,
+    api_base=ollama_base_url or None,
     temperature=float(os.getenv("TEMPERATURE", "0.6")),
     max_tokens=8192,
     litellm_params=litellm_params,

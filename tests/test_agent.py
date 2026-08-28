@@ -52,3 +52,7 @@ def test_dynamic_ai_override_preserves_configured_api_base(monkeypatch) -> None:
     assert result == "ok"
     assert observed["model"] == "openai/test-model"
     assert observed["api_base"] == "https://example.invalid/v1"
+
+
+def test_ai_config_uses_configured_api_base() -> None:
+    assert main.ai_config.api_base == main.ollama_base_url
