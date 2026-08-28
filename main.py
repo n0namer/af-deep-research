@@ -119,12 +119,14 @@ async def search_web_for_content(query: str) -> List[Dict]:
 async def ai_with_dynamic_params(
     *args, model: Optional[str] = None, api_key: Optional[str] = None, **kwargs
 ) -> Any:
-    """A wrapper for app.ai calls to allow dynamic model and API key overrides."""
+    """Preserve the configured API base when applying dynamic model/key overrides."""
     dynamic_params = {}
     if model:
         dynamic_params["model"] = model
     if api_key:
         dynamic_params["api_key"] = api_key
+    if (model or api_key) and litellm_params.get("api_base"):
+        dynamic_params["api_base"] = litellm_params["api_base"]
 
     merged_kwargs = {**kwargs, **dynamic_params}
     return await app.ai(*args, **merged_kwargs)
