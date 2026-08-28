@@ -1,5 +1,7 @@
 """Smoke tests for the current Deep Research AgentField surface."""
 
+import asyncio
+
 from pydantic import BaseModel
 
 import main
