@@ -6,6 +6,13 @@ import pytest
 from pydantic import BaseModel
 
 import main
+from doc_generation_pipeline import (
+    AIAssessmentList,
+    _classify_source,
+    _normalize_source_strictness,
+    _source_allowed_by_policy,
+    generate_document_from_package_core,
+)
 from reasoners.research_orchestrator import _parse_llm_json
 
 
