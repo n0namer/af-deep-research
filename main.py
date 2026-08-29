@@ -1535,6 +1535,7 @@ async def prepare_research_package(
     research_scope: int = 3,
     max_research_loops: int = 3,
     num_parallel_streams: int = 2,
+    source_strictness: str = "mixed",
     model: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> ModeAwareResearchResponse:
