@@ -219,7 +219,7 @@ def create_research_orchestrator(app):
             try:
                 import json
 
-                complexity_data = json.loads(complexity_analysis)
+                complexity_data = _parse_llm_json(complexity_analysis)
                 actual_complexity = complexity_data.get("complexity_level", complexity)
                 execution_strategy = complexity_data.get("execution_strategy", "linear")
                 estimated_reasoners = complexity_data.get("estimated_reasoners", 6)
