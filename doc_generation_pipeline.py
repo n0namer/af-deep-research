@@ -101,6 +101,22 @@ def _source_allowed_by_policy(source_type: str, policy: str) -> bool:
     return True
 
 
+def _writer_grounding_rule(source_strictness: str) -> str:
+    if _normalize_source_strictness(source_strictness) == "verified-only":
+        return (
+            "6. **Strict Evidence Boundary**: Every externally verifiable factual claim MUST be "
+            "directly supported by one or more entries in `<available_evidence>`. Do not fill gaps "
+            "from background knowledge, memory, or the core thesis. If the supplied evidence does "
+            "not establish a requested detail, state that the evidence is insufficient instead of "
+            "inventing or extrapolating it. Never attach a citation to a claim that the cited "
+            "evidence does not support."
+        )
+    return (
+        "6. **Evidence Boundary**: Prefer claims supported by `<available_evidence>` and clearly "
+        "separate evidence-backed findings from interpretation."
+    )
+
+
 # -----------------------------------------------------------------------------
 # Schemas required by the pipeline (copied)
 # -----------------------------------------------------------------------------
