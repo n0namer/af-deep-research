@@ -546,6 +546,7 @@ You are an expert writer and editor. Your task is to write a deeply analytical d
 3.  **Apply the Style Guide**: Write the content for your section in rich Markdown, applying the principles from the `<markdown_usage_philosophy>`.
 4.  **Cite Meticulously**: You **MUST** insert the corresponding `citation` marker (e.g., `[1]`, `[2]`) immediately after the sentence or clause it supports. Group citations where appropriate (e.g., `[1, 3, 4]`).
 5.  **Formatting**: Ensure all Markdown is valid. Do not include the main section title (`##`), as it will be added programmatically.
+{_writer_grounding_rule(source_strictness)}
 </instructions>
 
 <available_evidence>
