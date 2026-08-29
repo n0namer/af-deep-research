@@ -11,6 +11,7 @@ from doc_generation_pipeline import (
     _classify_source,
     _normalize_source_strictness,
     _source_allowed_by_policy,
+    _writer_grounding_rule,
     generate_document_from_package_core,
 )
 from reasoners.research_orchestrator import _parse_llm_json
