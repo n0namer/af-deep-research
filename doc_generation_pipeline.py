@@ -50,6 +50,57 @@ def _note(_: str) -> None:
     return None
 
 
+_SOURCE_STRICTNESS_ALIASES = {
+    "strict": "verified-only",
+    "verified-only": "verified-only",
+    "verified_only": "verified-only",
+    "mixed": "mixed",
+    "permissive": "exploratory",
+    "exploratory": "exploratory",
+}
+
+
+def _normalize_source_strictness(value: str) -> str:
+    normalized = str(value or "mixed").strip().lower()
+    try:
+        return _SOURCE_STRICTNESS_ALIASES[normalized]
+    except KeyError as exc:
+        allowed = ", ".join(sorted(_SOURCE_STRICTNESS_ALIASES))
+        raise ValueError(
+            f"Unsupported source_strictness={value!r}; expected one of: {allowed}"
+        ) from exc
+
+
+def _classify_source(url: str) -> tuple[str, float]:
+    domain = ""
+    if url:
+        parts = url.split("/")
+        if len(parts) > 2:
+            domain = parts[2].split(":", 1)[0].lower().removeprefix("www.")
+
+    if (
+        domain == "rfc-editor.org"
+        or domain == "ietf.org"
+        or domain.endswith(".ietf.org")
+        or domain == "w3.org"
+        or domain.endswith(".w3.org")
+    ):
+        return "primary_doc", 1.0
+    if domain.endswith(".gov") or ".gov." in domain:
+        return "gov", 0.95
+    if domain == "doi.org" or domain.endswith(".ncbi.nlm.nih.gov"):
+        return "peer_reviewed", 0.95
+    if "reuters" in domain or "apnews" in domain:
+        return "reputable_media", 0.8
+    return "blog", 0.4
+
+
+def _source_allowed_by_policy(source_type: str, policy: str) -> bool:
+    if policy == "verified-only":
+        return source_type in {"peer_reviewed", "gov", "reputable_media", "primary_doc"}
+    return True
+
+
 # -----------------------------------------------------------------------------
 # Schemas required by the pipeline (copied)
 # -----------------------------------------------------------------------------
@@ -746,6 +797,8 @@ async def generate_document_from_package_core(
         pkg = package  # assume UniversalResearchPackage-compatible
         mode = "general"
 
+    source_strictness = _normalize_source_strictness(source_strictness)
+
     note(f"🚀 Starting Intelligent Publishing Pipeline with Depth: {analysis_depth}...")
 
     note("Stage 1: Adjudicating evidence...")
@@ -764,12 +817,9 @@ async def generate_document_from_package_core(
             if source_article.url
             else "Unknown"
         )
-        source_type = (
-            "reputable_media"
-            if "reuters" in source_domain or "apnews" in source_domain
-            else "blog"
-        )
-        reliability_score = 0.8 if source_type == "reputable_media" else 0.4
+        source_type, reliability_score = _classify_source(source_article.url)
+        if not _source_allowed_by_policy(source_type, source_strictness):
+            continue
 
         for fact_content in ev.facts:
             fact_id = create_content_hash(f"{ev.article_id}-{fact_content}")
@@ -789,6 +839,11 @@ async def generate_document_from_package_core(
                 "source_url": source_article.url,
                 "source_domain": source_domain,
             }
+
+    if source_strictness == "verified-only" and not facts_to_assess:
+        raise ValueError(
+            "No eligible evidence remains after verified-only source filtering; strict mode fails closed."
+        )
 
     adjudication_tasks = []
     for i in range(0, len(facts_to_assess), ADJUDICATION_BATCH_SIZE):
@@ -830,8 +885,12 @@ async def generate_document_from_package_core(
                     disagreement_score=assessment.disagreement_score,
                 )
             )
-    # Fallback: if adjudication is over-restrictive, admit a small set of top facts
+    # Fallback: non-strict modes may salvage top evidence, but strict mode fails closed.
     if not adjudicated_facts and facts_to_assess:
+        if source_strictness == "verified-only":
+            raise ValueError(
+                "No evidence passed verified-only source adjudication; strict mode fails closed."
+            )
         note(
             "No facts passed adjudication; applying permissive fallback on top evidence (no verification)."
         )
