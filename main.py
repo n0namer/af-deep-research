@@ -1640,9 +1640,12 @@ async def prepare_research_package(
         article_id_offset = len(all_source_articles)
 
         for i, stream in enumerate(search_streams):
+            stream_queries = _augment_queries_for_source_policy(
+                stream.get("search_queries", []), source_strictness
+            )
             stream_result = await execute_intelligence_stream_comprehensive(
                 stream["stream_name"],
-                stream.get("search_queries", []),
+                stream_queries,
                 stream["analysis_focus"],
                 classification.core_subject,
                 classification.key_question,
