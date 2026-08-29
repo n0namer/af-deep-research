@@ -840,6 +840,11 @@ async def generate_document_from_package_core(
                 "source_domain": source_domain,
             }
 
+    if source_strictness == "verified-only" and not facts_to_assess:
+        raise ValueError(
+            "No eligible evidence remains after verified-only source filtering; strict mode fails closed."
+        )
+
     adjudication_tasks = []
     for i in range(0, len(facts_to_assess), ADJUDICATION_BATCH_SIZE):
         batch = facts_to_assess[i : i + ADJUDICATION_BATCH_SIZE]
