@@ -139,6 +139,24 @@ def _augment_queries_for_source_policy(
     return augmented
 
 
+def _interleave_unique_search_results(search_results_lists: List[List[Dict]]) -> List[Dict]:
+    """Round-robin query results so one query cannot consume the article cap."""
+    interleaved: List[Dict] = []
+    seen_urls = set()
+    max_len = max((len(results) for results in search_results_lists), default=0)
+    for index in range(max_len):
+        for results in search_results_lists:
+            if index >= len(results):
+                continue
+            result = results[index]
+            url = result.get("url")
+            if not url or url in seen_urls or not result.get("content", "").strip():
+                continue
+            seen_urls.add(url)
+            interleaved.append(result)
+    return interleaved
+
+
 async def ai_with_dynamic_params(
     *args, model: Optional[str] = None, api_key: Optional[str] = None, **kwargs
 ) -> Any:
