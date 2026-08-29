@@ -7,8 +7,24 @@ using Agent Field DAG patterns with parallel execution and memory-based learning
 """
 
 import asyncio
+import json
+import re
 import uuid
 from datetime import datetime, timedelta
+
+
+def _parse_llm_json(payload: str):
+    """Parse JSON from common LLM envelopes such as <think> blocks or fenced code."""
+    text = str(payload).strip()
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text).strip()
+    starts = [i for i in (text.find("{"), text.find("[")) if i >= 0]
+    if not starts:
+        raise ValueError("No JSON object or array found in LLM response")
+    value, _ = json.JSONDecoder().raw_decode(text[min(starts):])
+    return value
 from typing import Any, Dict, List, Optional, Union
 
 from . import universal_reasoners
