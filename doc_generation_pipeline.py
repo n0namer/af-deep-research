@@ -797,6 +797,8 @@ async def generate_document_from_package_core(
         pkg = package  # assume UniversalResearchPackage-compatible
         mode = "general"
 
+    source_strictness = _normalize_source_strictness(source_strictness)
+
     note(f"🚀 Starting Intelligent Publishing Pipeline with Depth: {analysis_depth}...")
 
     note("Stage 1: Adjudicating evidence...")
