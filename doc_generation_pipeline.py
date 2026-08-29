@@ -817,12 +817,9 @@ async def generate_document_from_package_core(
             if source_article.url
             else "Unknown"
         )
-        source_type = (
-            "reputable_media"
-            if "reuters" in source_domain or "apnews" in source_domain
-            else "blog"
-        )
-        reliability_score = 0.8 if source_type == "reputable_media" else 0.4
+        source_type, reliability_score = _classify_source(source_article.url)
+        if not _source_allowed_by_policy(source_type, source_strictness):
+            continue
 
         for fact_content in ev.facts:
             fact_id = create_content_hash(f"{ev.article_id}-{fact_content}")
