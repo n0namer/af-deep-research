@@ -10,6 +10,7 @@ on a global Agent. Callers must provide the AI call wrapper.
 
 import asyncio
 import datetime
+import html
 import re
 from typing import Any, Dict, List, Optional
 
