@@ -1,53 +1,58 @@
-"""
-Tests for the deep-research-agent Agent.
-Generated on 2025-07-09 16:20:06 EDT
-"""
+"""Smoke tests for the current Deep Research AgentField surface."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from agentfield.execution_context import ExecutionContext
-from agent.agent import deepresearchagentAgent, ExampleReasonerInput, ExampleSkillInput
+import asyncio
 
-@pytest.fixture
-def mock_agent():
-    """Fixture to provide a mock instance of deepresearchagentAgent."""
-    agent = deepresearchagentAgent()
-    agent.context = MagicMock(spec=ExecutionContext)
-    agent.context.get_config.return_value = "mock_api_key"
-    return agent
+from pydantic import BaseModel
 
-@pytest.mark.asyncio
-async def test_example_reasoner_success(mock_agent):
-    """Test example_reasoner with a successful message processing."""
-    input_data = ExampleReasonerInput(message="hello world")
-    
-    # Mock context.call_skill if it's used within the reasoner
-    mock_agent.context.call_skill = AsyncMock(return_value={"status": "skill_done"})
+import main
 
-    result = await mock_agent.example_reasoner(mock_agent.context, input_data)
 
-    assert result.processed_message == "PROCESSED: HELLO WORLD"
-    assert result.status == "success"
-    mock_agent.context.get_config.assert_called_with("my_service.api_key", "default_api_key")
+def test_agent_identity() -> None:
+    assert main.app.node_id == "meta_deep_research"
+    assert main.app.version == "3.0.0"
 
-@pytest.mark.asyncio
-async def test_example_skill_success(mock_agent):
-    """Test example_skill with successful data processing."""
-    input_data = ExampleSkillInput(data={"key": "test_value"})
-    
-    result = await mock_agent.example_skill(mock_agent.context, input_data)
 
-    assert result.result == "Skill processed data: test_value"
-    assert result.success is True
+def test_current_reasoner_surface_is_importable() -> None:
+    assert callable(main.merge_entity_pair)
+    assert callable(main.detect_entity_duplicates_batch)
+    assert callable(main.detect_relationship_duplicates_batch)
+    assert callable(main.merge_relationship_pair)
 
-@pytest.mark.asyncio
-async def test_example_skill_no_key(mock_agent):
-    """Test example_skill when 'key' is not present in input data."""
-    input_data = ExampleSkillInput(data={"another_key": "some_value"})
-    
-    result = await mock_agent.example_skill(mock_agent.context, input_data)
 
-    assert result.result == "Skill processed data: no_key"
-    assert result.success is True
+def test_entity_schema_contract() -> None:
+    assert issubclass(main.Entity, BaseModel)
+    entity = main.Entity(name="OpenAI", type="organization", summary="AI research company")
+    assert entity.name == "OpenAI"
+    assert entity.type == "organization"
+    assert entity.summary == "AI research company"
 
-# You can add more tests here for edge cases, error handling, etc.
+
+def test_merged_entity_schema_contract() -> None:
+    assert issubclass(main.MergedEntity, BaseModel)
+    fields = set(main.MergedEntity.model_fields)
+    assert {"name", "type", "summary"}.issubset(fields)
+
+
+def test_dynamic_ai_override_preserves_configured_api_base(monkeypatch) -> None:
+    observed = {}
+
+    async def fake_ai(*args, **kwargs):
+        observed.update(kwargs)
+        return "ok"
+
+    monkeypatch.setattr(main.app, "ai", fake_ai)
+    original_params = dict(main.litellm_params)
+    main.litellm_params["api_base"] = "https://example.invalid/v1"
+    try:
+        result = asyncio.run(main.ai_with_dynamic_params(model="openai/test-model"))
+    finally:
+        main.litellm_params.clear()
+        main.litellm_params.update(original_params)
+
+    assert result == "ok"
+    assert observed["model"] == "openai/test-model"
+    assert observed["api_base"] == "https://example.invalid/v1"
+
+
+def test_ai_config_uses_configured_api_base() -> None:
+    assert main.ai_config.api_base == main.ollama_base_url
