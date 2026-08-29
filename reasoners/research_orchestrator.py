@@ -300,7 +300,7 @@ def create_research_orchestrator(app):
                 )
 
                 try:
-                    sub_queries = json.loads(sub_query_generation)
+                    sub_queries = _parse_llm_json(sub_query_generation)
                     if len(sub_queries) >= 2:
                         print(
                             f"🔀 Executing parallel research with {len(sub_queries)} sub-queries"
