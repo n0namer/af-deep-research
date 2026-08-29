@@ -3153,6 +3153,7 @@ async def execute_deep_research(
         research_scope=research_scope,
         max_research_loops=max_research_loops,
         num_parallel_streams=num_parallel_streams,
+        source_strictness=source_strictness,
         model=model,
         api_key=api_key,
     )
