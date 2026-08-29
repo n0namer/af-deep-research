@@ -1407,16 +1407,13 @@ async def execute_intelligence_stream_comprehensive(
     search_tasks = [search_web_for_content(query) for query in search_queries]
     search_results_lists = await asyncio.gather(*search_tasks)
 
-    # Process and deduplicate articles
-    unique_articles_map = {
-        res["url"]: res
-        for res in [item for sublist in search_results_lists for item in sublist]
-        if "url" in res and res.get("content", "").strip()
-    }
+    # Process and deduplicate articles while preserving fair query coverage.
+    unique_results = _interleave_unique_search_results(search_results_lists)
 
     source_articles: List[Article] = []
     article_id_counter = start_article_id
-    for url, result in list(unique_articles_map.items())[:MAX_ARTICLES_PER_TASK]:
+    for result in unique_results[:MAX_ARTICLES_PER_TASK]:
+        url = result["url"]
         content = result.get("content", "")
         if content.strip():
             source_articles.append(
