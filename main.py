@@ -139,6 +139,24 @@ def _augment_queries_for_source_policy(
     return augmented
 
 
+def _interleave_unique_search_results(search_results_lists: List[List[Dict]]) -> List[Dict]:
+    """Round-robin query results so one query cannot consume the article cap."""
+    interleaved: List[Dict] = []
+    seen_urls = set()
+    max_len = max((len(results) for results in search_results_lists), default=0)
+    for index in range(max_len):
+        for results in search_results_lists:
+            if index >= len(results):
+                continue
+            result = results[index]
+            url = result.get("url")
+            if not url or url in seen_urls or not result.get("content", "").strip():
+                continue
+            seen_urls.add(url)
+            interleaved.append(result)
+    return interleaved
+
+
 async def ai_with_dynamic_params(
     *args, model: Optional[str] = None, api_key: Optional[str] = None, **kwargs
 ) -> Any:
@@ -1389,16 +1407,13 @@ async def execute_intelligence_stream_comprehensive(
     search_tasks = [search_web_for_content(query) for query in search_queries]
     search_results_lists = await asyncio.gather(*search_tasks)
 
-    # Process and deduplicate articles
-    unique_articles_map = {
-        res["url"]: res
-        for res in [item for sublist in search_results_lists for item in sublist]
-        if "url" in res and res.get("content", "").strip()
-    }
+    # Process and deduplicate articles while preserving fair query coverage.
+    unique_results = _interleave_unique_search_results(search_results_lists)
 
     source_articles: List[Article] = []
     article_id_counter = start_article_id
-    for url, result in list(unique_articles_map.items())[:MAX_ARTICLES_PER_TASK]:
+    for result in unique_results[:MAX_ARTICLES_PER_TASK]:
+        url = result["url"]
         content = result.get("content", "")
         if content.strip():
             source_articles.append(
