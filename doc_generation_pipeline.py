@@ -1064,6 +1064,7 @@ async def generate_document_from_package_core(
             full_context_query=pkg.query,
             full_context_thesis=pkg.core_thesis,
             evidence_style=evidence_style,
+            source_strictness=source_strictness,
             ai_call=ai_call,
             note=note,
             model=model,
