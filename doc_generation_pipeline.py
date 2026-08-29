@@ -50,6 +50,57 @@ def _note(_: str) -> None:
     return None
 
 
+_SOURCE_STRICTNESS_ALIASES = {
+    "strict": "verified-only",
+    "verified-only": "verified-only",
+    "verified_only": "verified-only",
+    "mixed": "mixed",
+    "permissive": "exploratory",
+    "exploratory": "exploratory",
+}
+
+
+def _normalize_source_strictness(value: str) -> str:
+    normalized = str(value or "mixed").strip().lower()
+    try:
+        return _SOURCE_STRICTNESS_ALIASES[normalized]
+    except KeyError as exc:
+        allowed = ", ".join(sorted(_SOURCE_STRICTNESS_ALIASES))
+        raise ValueError(
+            f"Unsupported source_strictness={value!r}; expected one of: {allowed}"
+        ) from exc
+
+
+def _classify_source(url: str) -> tuple[str, float]:
+    domain = ""
+    if url:
+        parts = url.split("/")
+        if len(parts) > 2:
+            domain = parts[2].split(":", 1)[0].lower().removeprefix("www.")
+
+    if (
+        domain == "rfc-editor.org"
+        or domain == "ietf.org"
+        or domain.endswith(".ietf.org")
+        or domain == "w3.org"
+        or domain.endswith(".w3.org")
+    ):
+        return "primary_doc", 1.0
+    if domain.endswith(".gov") or ".gov." in domain:
+        return "gov", 0.95
+    if domain == "doi.org" or domain.endswith(".ncbi.nlm.nih.gov"):
+        return "peer_reviewed", 0.95
+    if "reuters" in domain or "apnews" in domain:
+        return "reputable_media", 0.8
+    return "blog", 0.4
+
+
+def _source_allowed_by_policy(source_type: str, policy: str) -> bool:
+    if policy == "verified-only":
+        return source_type in {"peer_reviewed", "gov", "reputable_media", "primary_doc"}
+    return True
+
+
 # -----------------------------------------------------------------------------
 # Schemas required by the pipeline (copied)
 # -----------------------------------------------------------------------------
