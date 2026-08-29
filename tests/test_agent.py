@@ -2,9 +2,11 @@
 
 import asyncio
 
+import pytest
 from pydantic import BaseModel
 
 import main
+from reasoners.research_orchestrator import _parse_llm_json
 
 
 def test_agent_identity() -> None:
@@ -56,3 +58,20 @@ def test_dynamic_ai_override_preserves_configured_api_base(monkeypatch) -> None:
 
 def test_ai_config_uses_configured_api_base() -> None:
     assert main.ai_config.api_base == main.ollama_base_url
+
+
+def test_parse_llm_json_accepts_think_wrapped_object() -> None:
+    payload = '<think>reasoning that must be ignored</think>\n{"complexity_level":"complex","parallel_beneficial":true}'
+    parsed = _parse_llm_json(payload)
+    assert parsed["complexity_level"] == "complex"
+    assert parsed["parallel_beneficial"] is True
+
+
+def test_parse_llm_json_accepts_fenced_array_with_trailing_text() -> None:
+    payload = '```json\n["q1", "q2", "q3"]\n```\nextra commentary'
+    assert _parse_llm_json(payload) == ["q1", "q2", "q3"]
+
+
+def test_parse_llm_json_rejects_non_json_payload() -> None:
+    with pytest.raises(ValueError, match="No JSON object or array found"):
+        _parse_llm_json("analysis only, no structured payload")

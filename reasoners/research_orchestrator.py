@@ -7,8 +7,24 @@ using Agent Field DAG patterns with parallel execution and memory-based learning
 """
 
 import asyncio
+import json
+import re
 import uuid
 from datetime import datetime, timedelta
+
+
+def _parse_llm_json(payload: str):
+    """Parse JSON from common LLM envelopes such as <think> blocks or fenced code."""
+    text = str(payload).strip()
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text).strip()
+    starts = [i for i in (text.find("{"), text.find("[")) if i >= 0]
+    if not starts:
+        raise ValueError("No JSON object or array found in LLM response")
+    value, _ = json.JSONDecoder().raw_decode(text[min(starts):])
+    return value
 from typing import Any, Dict, List, Optional, Union
 
 from . import universal_reasoners
@@ -203,7 +219,7 @@ def create_research_orchestrator(app):
             try:
                 import json
 
-                complexity_data = json.loads(complexity_analysis)
+                complexity_data = _parse_llm_json(complexity_analysis)
                 actual_complexity = complexity_data.get("complexity_level", complexity)
                 execution_strategy = complexity_data.get("execution_strategy", "linear")
                 estimated_reasoners = complexity_data.get("estimated_reasoners", 6)
@@ -284,7 +300,7 @@ def create_research_orchestrator(app):
                 )
 
                 try:
-                    sub_queries = json.loads(sub_query_generation)
+                    sub_queries = _parse_llm_json(sub_query_generation)
                     if len(sub_queries) >= 2:
                         print(
                             f"🔀 Executing parallel research with {len(sub_queries)} sub-queries"
