@@ -489,6 +489,7 @@ async def write_document_section(
     full_context_query: str,
     full_context_thesis: str,
     evidence_style: str,
+    source_strictness: str,
     *,
     ai_call=ai_with_dynamic_params,
     note=_note,
