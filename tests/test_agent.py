@@ -169,3 +169,18 @@ def test_strict_writer_rule_forbids_background_knowledge_fill() -> None:
     assert "Every externally verifiable factual claim MUST be" in rule
     assert "Do not fill gaps from background knowledge" in rule
     assert "evidence is insufficient" in rule
+
+
+def test_query_fair_retrieval_interleaves_before_article_cap() -> None:
+    q1 = [{"url": f"https://q1/{i}", "content": "x"} for i in range(5)]
+    q2 = [{"url": f"https://q2/{i}", "content": "x"} for i in range(5)]
+    q3 = [{"url": f"https://q3/{i}", "content": "x"} for i in range(5)]
+    urls = [r["url"] for r in main._interleave_unique_search_results([q1, q2, q3])[:6]]
+    assert urls == [
+        "https://q1/0",
+        "https://q2/0",
+        "https://q3/0",
+        "https://q1/1",
+        "https://q2/1",
+        "https://q3/1",
+    ]
