@@ -880,8 +880,12 @@ async def generate_document_from_package_core(
                     disagreement_score=assessment.disagreement_score,
                 )
             )
-    # Fallback: if adjudication is over-restrictive, admit a small set of top facts
+    # Fallback: non-strict modes may salvage top evidence, but strict mode fails closed.
     if not adjudicated_facts and facts_to_assess:
+        if source_strictness == "verified-only":
+            raise ValueError(
+                "No evidence passed verified-only source adjudication; strict mode fails closed."
+            )
         note(
             "No facts passed adjudication; applying permissive fallback on top evidence (no verification)."
         )
