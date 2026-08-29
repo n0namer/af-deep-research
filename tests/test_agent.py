@@ -11,6 +11,7 @@ from doc_generation_pipeline import (
     _classify_source,
     _normalize_source_strictness,
     _source_allowed_by_policy,
+    _writer_grounding_rule,
     generate_document_from_package_core,
 )
 from reasoners.research_orchestrator import _parse_llm_json
@@ -146,3 +147,25 @@ def test_strict_mode_does_not_permissively_restore_rejected_primary_evidence() -
                 ai_call=reject_all,
             )
         )
+
+
+def test_strict_research_adds_primary_source_companion_queries() -> None:
+    queries = ["HTTP/3 RFC 9114", "HTTP/3 RFC 9114", "QUIC RFC 9000"]
+    assert main._augment_queries_for_source_policy(queries, "strict") == [
+        "HTTP/3 RFC 9114",
+        "HTTP/3 RFC 9114 official primary source",
+        "QUIC RFC 9000",
+        "QUIC RFC 9000 official primary source",
+    ]
+
+
+def test_mixed_research_does_not_expand_search_queries() -> None:
+    queries = ["HTTP/3 RFC 9114", "QUIC RFC 9000"]
+    assert main._augment_queries_for_source_policy(queries, "mixed") == queries
+
+
+def test_strict_writer_rule_forbids_background_knowledge_fill() -> None:
+    rule = _writer_grounding_rule("strict")
+    assert "Every externally verifiable factual claim MUST be" in rule
+    assert "Do not fill gaps from background knowledge" in rule
+    assert "evidence is insufficient" in rule

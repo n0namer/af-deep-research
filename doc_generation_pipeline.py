@@ -101,6 +101,22 @@ def _source_allowed_by_policy(source_type: str, policy: str) -> bool:
     return True
 
 
+def _writer_grounding_rule(source_strictness: str) -> str:
+    if _normalize_source_strictness(source_strictness) == "verified-only":
+        return (
+            "6. **Strict Evidence Boundary**: Every externally verifiable factual claim MUST be "
+            "directly supported by one or more entries in `<available_evidence>`. Do not fill gaps "
+            "from background knowledge, memory, or the core thesis. If the supplied evidence does "
+            "not establish a requested detail, state that the evidence is insufficient instead of "
+            "inventing or extrapolating it. Never attach a citation to a claim that the cited "
+            "evidence does not support."
+        )
+    return (
+        "6. **Evidence Boundary**: Prefer claims supported by `<available_evidence>` and clearly "
+        "separate evidence-backed findings from interpretation."
+    )
+
+
 # -----------------------------------------------------------------------------
 # Schemas required by the pipeline (copied)
 # -----------------------------------------------------------------------------
@@ -473,6 +489,7 @@ async def write_document_section(
     full_context_query: str,
     full_context_thesis: str,
     evidence_style: str,
+    source_strictness: str,
     *,
     ai_call=ai_with_dynamic_params,
     note=_note,
@@ -529,6 +546,7 @@ You are an expert writer and editor. Your task is to write a deeply analytical d
 3.  **Apply the Style Guide**: Write the content for your section in rich Markdown, applying the principles from the `<markdown_usage_philosophy>`.
 4.  **Cite Meticulously**: You **MUST** insert the corresponding `citation` marker (e.g., `[1]`, `[2]`) immediately after the sentence or clause it supports. Group citations where appropriate (e.g., `[1, 3, 4]`).
 5.  **Formatting**: Ensure all Markdown is valid. Do not include the main section title (`##`), as it will be added programmatically.
+{_writer_grounding_rule(source_strictness)}
 </instructions>
 
 <available_evidence>
@@ -1046,6 +1064,7 @@ async def generate_document_from_package_core(
             full_context_query=pkg.query,
             full_context_thesis=pkg.core_thesis,
             evidence_style=evidence_style,
+            source_strictness=source_strictness,
             ai_call=ai_call,
             note=note,
             model=model,

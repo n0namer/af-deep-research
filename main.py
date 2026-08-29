@@ -118,6 +118,27 @@ async def search_web_for_content(query: str) -> List[Dict]:
         return []
 
 
+def _augment_queries_for_source_policy(
+    search_queries: List[str], source_strictness: str
+) -> List[str]:
+    """Add explicit primary-source companion queries for strict research runs."""
+    normalized = str(source_strictness or "mixed").strip().lower()
+    if normalized not in {"strict", "verified-only", "verified_only"}:
+        return list(search_queries)
+
+    augmented: List[str] = []
+    seen = set()
+    for raw_query in search_queries:
+        query = str(raw_query or "").strip()
+        if not query:
+            continue
+        for candidate in (query, f"{query} official primary source"):
+            if candidate not in seen:
+                seen.add(candidate)
+                augmented.append(candidate)
+    return augmented
+
+
 async def ai_with_dynamic_params(
     *args, model: Optional[str] = None, api_key: Optional[str] = None, **kwargs
 ) -> Any:
@@ -1514,6 +1535,7 @@ async def prepare_research_package(
     research_scope: int = 3,
     max_research_loops: int = 3,
     num_parallel_streams: int = 2,
+    source_strictness: str = "mixed",
     model: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> ModeAwareResearchResponse:
@@ -1618,9 +1640,12 @@ async def prepare_research_package(
         article_id_offset = len(all_source_articles)
 
         for i, stream in enumerate(search_streams):
+            stream_queries = _augment_queries_for_source_policy(
+                stream.get("search_queries", []), source_strictness
+            )
             stream_result = await execute_intelligence_stream_comprehensive(
                 stream["stream_name"],
-                stream.get("search_queries", []),
+                stream_queries,
                 stream["analysis_focus"],
                 classification.core_subject,
                 classification.key_question,
@@ -3128,6 +3153,7 @@ async def execute_deep_research(
         research_scope=research_scope,
         max_research_loops=max_research_loops,
         num_parallel_streams=num_parallel_streams,
+        source_strictness=source_strictness,
         model=model,
         api_key=api_key,
     )
