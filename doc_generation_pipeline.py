@@ -200,14 +200,19 @@ class FinalDocument(BaseModel):
 class FactForAdjudication(BaseModel):
     fact_id: str
     content: str
+    source_id: int
     source_type: str
     source_reliability_score: float
+    source_text: str
 
 
 class AIAssessment(BaseModel):
     fact_id: str
     is_allowed: bool = Field(
         description="True if this fact is admissible based on the source strictness policy."
+    )
+    is_source_supported: bool = Field(
+        description="True only if the fact is directly stated or semantically entailed by its exact source text."
     )
     is_verified: bool = Field(
         description="True if the source is considered reputable and formally verified."
