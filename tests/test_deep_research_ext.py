@@ -409,3 +409,32 @@ def test_final_verifier_accepts_when_every_material_claim_is_cited_and_entailed(
     state = asyncio.run(verify_final_document(document_package=document, research_package=research, source_strictness="strict", ai_call=lambda **kwargs: None, claim_extractor=fake_extract, adjudicator=fake_adjudicator))
     assert state.passed is True
     assert state.supported_claim_count == 1
+
+
+def test_verified_pipeline_rejects_strict_writer_draft_when_final_verifier_fails(monkeypatch):
+    from doc_generation_pipeline import DocumentResponse
+    from reasoners.deep_research_ext import verified_pipeline as vp
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
+    from reasoners.deep_research_ext.final_verifier import FinalVerificationState, UnsupportedDraftClaim
+    from reasoners.deep_research_ext.models import ExtensionTrace
+    from reasoners.deep_research_ext.methodology import select_methodology
+
+    contract = build_answer_contract("one", source_strictness="strict")
+    trace = ExtensionTrace(answer_contract=contract, method_selection=select_methodology(contract))
+    ledger = EvidenceLedger(
+        created_at="now",
+        sources=[EvidenceSource(source_id=1, title="RFC", url="https://rfc-editor.org/rfc/rfc9000", content_hash="x", source_class="primary_standard", provenance_group="rfc-editor.org", retrieved_at="now")],
+        claims=[EvidenceClaim(claim_id="C1", text="RFC 9000 specifies QUIC.", source_id=1, requirement_ids=["R1"], status="verified", support_state="source_entailed")],
+    )
+    async def fake_prepare(**kwargs):
+        return SimpleNamespace(research_package={"source_articles": [], "article_evidence": []}, metadata={})
+    async def fake_map(**kwargs): return ledger
+    async def fake_verify(**kwargs): return ledger
+    async def fake_writer(**kwargs):
+        return DocumentResponse(mode="general", version="1", research_package={"document_title":"x","executive_summary":"Unsupported fact.","sections":[],"source_notes":[],"disclaimers":[]}, metadata={})
+    async def fake_final(**kwargs):
+        return FinalVerificationState(material_claim_count=1, supported_claim_count=0, passed=False, unsupported_claims=[UnsupportedDraftClaim(claim_id="D1", text="Unsupported fact.", citation_ids=[], reason="material_claim_has_no_citation")])
+    monkeypatch.setattr(vp, "build_evidence_ledger", lambda package, requirement_ids: ledger)
+    monkeypatch.setattr(vp, "map_claims_to_requirements", fake_map)
+    monkeypatch.setattr(vp, "verify_ledger_claims", fake_verify)
+    monkeypatch.setattr(vp, "verify_final_document", fake_final)
