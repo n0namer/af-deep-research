@@ -225,3 +225,23 @@ def test_adjudicator_receives_exact_source_text_and_requires_entailment() -> Non
     assert "The QUIC Working Group was chartered in 2016." in captured["prompt"]
     assert "directly stated or semantically entailed" in captured["prompt"]
     assert result.assessments[0].is_source_supported is False
+
+
+def test_strict_standards_queries_add_official_domain_companions() -> None:
+    queries = main._augment_queries_for_source_policy(["RFC 9114 HTTP/3"], "strict")
+    assert "RFC 9114 HTTP/3 site:rfc-editor.org" in queries
+    assert "RFC 9114 HTTP/3 site:datatracker.ietf.org" in queries
+
+
+def test_strict_retrieval_prioritizes_primary_sources_before_article_cap() -> None:
+    results = [
+        {"url": "https://example.com/blog", "content": "blog"},
+        {"url": "https://www.rfc-editor.org/info/rfc9000", "content": "rfc9000"},
+        {"url": "https://datatracker.ietf.org/doc/html/rfc9114", "content": "rfc9114"},
+        {"url": "https://example.net/post", "content": "post"},
+    ]
+    prioritized = main._prioritize_search_results_for_source_policy(results, "strict")
+    assert [item["url"] for item in prioritized[:2]] == [
+        "https://www.rfc-editor.org/info/rfc9000",
+        "https://datatracker.ietf.org/doc/html/rfc9114",
+    ]

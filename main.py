@@ -22,6 +22,8 @@ from temporal_context import get_temporal_context
 from doc_generation_pipeline import (
     DocumentResponse as DocGenDocumentResponse,
     FinalDocument as DocGenFinalDocument,
+    _classify_source,
+    _normalize_source_strictness,
     generate_document_from_package_core,
 )
 
