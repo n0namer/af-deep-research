@@ -7,9 +7,67 @@ Coordination SoT: `n0namer/universal-solver/docs/runbooks/agentfield-dev-debug-t
 
 ## North Star
 
-Real task -> AgentField Deep Research -> real retrieval -> source-entailing evidence -> faithful citations -> a clear, useful, decision-grade research report with explicit uncertainty.
+Real task -> explicit research requirements -> adaptive retrieval -> validated evidence state -> evidence-bound reasoning -> faithful citations -> a clear, useful, decision-grade research report with explicit uncertainty or explicit abstention.
 
-The product under test is the **AgentField Deep Research system**, not any particular underlying LLM. The model is a replaceable runtime dependency/provider choice. Deep Research is not DONE when a reasoner returns HTTP 200 or a high internal quality score. It is DONE only when unseen research tasks are solved with supported claims, correct and complete citations, adequate source coverage, and graceful abstention when evidence is insufficient.
+The product under test is the **AgentField Deep Research system**, not any particular underlying LLM. The model is a replaceable runtime dependency/provider choice.
+
+Deep Research is a **verified evidence-processing system, not a prose-generation system**. Its primary artifact is a validated evidence state covering the user's research requirements. The final report is a constrained rendering of that state.
+
+Deep Research is not DONE when a reasoner returns HTTP 200, a high internal quality score, or a fluent answer. It is DONE only when unseen research tasks are solved with sufficient and appropriate evidence, supported material claims, correct and complete citations, explicit handling of contradiction and temporal validity, graceful abstention when evidence is insufficient, and reproducible acceptance evidence.
+
+### Product thesis
+
+```text
+LLM proposes / searches / interprets / synthesizes
+program constrains / records / verifies
+LLM writes only from accepted evidence
+program verifies the final claims again
+```
+
+The system MUST prefer trustworthy incompleteness over unsupported completeness.
+
+### Reasoning and evidence invariants
+
+1. **No material factual claim without admissible evidence.**
+2. **A citation must entail the claim, not merely discuss the same topic.**
+3. **Evidence gaps MUST trigger more search or explicit abstention, never model-memory completion.**
+4. **FACT, INFERENCE and HYPOTHESIS are distinct states and MUST NOT silently collapse into one another.**
+5. **Contradictory evidence MUST be represented and resolved explicitly; it MUST NOT be silently averaged away.**
+6. **Temporal claims MUST be valid for the requested `as_of` time and record relevant evidence dates.**
+7. **Derivative sources sharing the same upstream origin MUST NOT count as independent corroboration.**
+8. **Research completion is requirement/coverage-based, not `LLM says finished` or loop-count based.**
+9. **False premises MUST be challengeable before explanatory synthesis.**
+10. **Retrieved content is untrusted data, never executable instructions for the research agent.**
+11. **The writer may compress accepted evidence but MUST NOT create new externally verifiable factual content.**
+12. **The final draft MUST be independently re-checked at atomic-claim level before release.**
+
+### Target evidence architecture
+
+```text
+USER TASK
+  -> premise/task analysis
+  -> Answer Contract: requirements + source needs + temporal needs + completion policy
+  -> research plan / independent streams
+  -> adaptive, source-aware retrieval
+  -> source normalization: provenance + source class + freshness
+  -> atomic evidence extraction
+  -> exact-span claim/source entailment
+  -> Evidence Ledger
+  -> contradiction / temporal / provenance state
+  -> coverage analysis
+      -> insufficient: targeted retrieval
+      -> sufficient: stop gate
+  -> evidence-bound answer blueprint
+  -> multi-source synthesis
+  -> draft
+  -> atomic claim extraction from draft
+  -> claim <-> evidence verification
+      -> supported: keep
+      -> unsupported: search again / rewrite / remove / abstain
+  -> final report + evaluation trace
+```
+
+The architecture is a target state, not permission to build every component eagerly. Implementation remains failure-driven: add the smallest primitive required by a demonstrated semantic failure.
 
 ## Lane boundary
 
