@@ -116,6 +116,32 @@ Make full AgentField Deep Research preserve strict-source semantics across the n
 - If strict semantics propagate correctly but source coverage remains incomplete, return to retrieval coverage.
 - If source coverage becomes adequate but writer still invents claims, move immediately to programmatic evidence-sufficiency/abstention enforcement.
 
+## CURRENT validation blocker — permanent DEV source-pin mismatch
+
+Status: `VALIDATION_BLOCKER` for runtime/E2E, not an AgentField Deep Research application failure.
+
+Observed during the current batch:
+- permanent DEV is materialized from `universal-solver` with Deep Research pinned to `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
+- this `PLAN.md` and its coordination corrections advanced `n0namer/af-deep-research:dev` beyond that historical pin;
+- `reconcile_dev_workspace.sh` intentionally fails closed when `target_sha != current origin/dev`;
+- after a stop/start recovery attempt the Deep Research container exits `31` with `target is not current origin/dev`, while the shared `/deep-src` volume remains preserved and still contains the container-first product delta;
+- the Source Loop/pin/reconciliation contract is Lane B-owned and MUST NOT be patched from Lane A merely to bypass this guard.
+
+Consequence:
+- lower-level source evidence remains preserved;
+- full runtime canaries and A1 are blocked until Lane B reconciles the permanent DEV source contract with the moving product `dev`, or provides an agreed Lane A-safe runtime path;
+- do not misclassify this as a regression in `main.py` or document generation.
+
+Current Lane A source delta preserved in shared DEV volume:
+- `main.py` — strict query augmentation + pre-cap source-policy prioritization + strictness propagation attempt;
+- `doc_generation_pipeline.py` — exact-source entailment gate;
+- `tests/test_agent.py` — associated regressions;
+- last verified suite before the lifecycle interruption: `20/20 PASS`.
+
+One next bounded move while runtime is blocked:
+- hand the source-pin mismatch finding to Lane B through the canonical coordination SoT;
+- resume product mutation only through a path that can still provide validation evidence; do not add speculative changes that cannot be exercised.
+
 ## Subsequent gates
 
 Do not skip semantic gates:
