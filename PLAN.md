@@ -106,99 +106,80 @@ A release handoff is ready only when:
 - runtime/config assumptions are recorded;
 - required container-only changes = NONE.
 
-## Baseline evidence — 2026-08-30
+## CURRENT evidence — 2026-08-30
 
-Repository `dev` at the start of the current development cycle:
-- `2cb0814deda4a9ab9158a4f9a876728e6977a799`.
+Permanent DEV has been recovered around the preserved container-first product source. The previous source-pin startup failure is **no longer a current validation blocker** for Lane A product work.
 
-Permanent DEV CURRENT readback before the next batch:
-- source marker: `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
+CURRENT readback:
 - `/app` git HEAD: `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
-- container-only modified files: `doc_generation_pipeline.py`, `tests/test_agent.py`;
+- preserved live product delta: `main.py`, `doc_generation_pipeline.py`, `tests/test_agent.py`;
+- health: HTTP 200;
+- AgentField runtime: `3.0.0`;
+- registered HTTP reasoner schema for `execute_intelligence_stream_comprehensive` now exposes `source_strictness`;
+- regression suite after recovery: `20/20 PASS`;
 - model: `openai/deepseek-ai/DeepSeek-V4-Flash-0731`;
-- search: Tavily enabled + Firecrawl enabled;
-- health: HTTP 200.
+- search: Tavily enabled + Firecrawl enabled.
 
-Accepted evidence from the current container-only source-entailment increment:
-- regression suite reached `18/18 PASS`;
-- real DeepSeek adjudication canary distinguished a source-entailed fact from an unsupported fact;
-- strict runtime canary failed closed when no evidence passed source adjudication.
+Accepted lower-layer quality evidence:
+- query-result starvation was fixed by fair interleaving across generated search queries;
+- strict standards queries add deterministic RFC Editor / IETF companion searches;
+- strict pre-cap source prioritization can retain/select RFC 9000 and RFC 9114 primary sources;
+- exact-source adjudication distinguishes source-entailed facts from unsupported facts;
+- strict evidence adjudication fails closed when no facts are supported;
+- writer prompt already forbids filling evidence gaps from model memory, but full A1 proved prompt-only grounding is not sufficient.
 
-## Current open product defect
+Operational note: current runtime recovery uses a DEV-only runtime override that preserves the same `/app` source and avoids Git reconciliation. It is a temporary runtime mechanism, not a product-code change and not a release artifact.
 
-The strict-primary-source retrieval increment is now locally proven but full A1 still fails semantically.
+## Current open product defects
 
-Fresh evidence after the latest live DEV patch:
-- `/app` modified files: `main.py`, `doc_generation_pipeline.py`, `tests/test_agent.py`;
-- regression suite: `20/20 PASS`;
-- explicit `site:rfc-editor.org` provider canaries return official RFC 9000 and RFC 9114 pages;
-- direct/local `execute_intelligence_stream_comprehensive(..., source_strictness="strict")` selects RFC 9000/9114 among the capped articles;
-- full `execute_deep_research` A1 still produced incomplete/generic evidence and unsupported dated claims;
-- local Python signature contains `source_strictness`, while the CURRENT registered `/reasoners` schema for `execute_intelligence_stream_comprehensive` does not expose that field;
-- CURRENT AgentField registry simultaneously reports two active `meta_deep_research` registrations for the same endpoint `http://deep-research:8001` (versions `1.0.0` and `3.0.0`). This is registry drift evidence, not permission for Lane A to perform registry cleanup.
+### P0 — strictness propagation is incomplete across research expansion
 
-Current failing-layer hypothesis:
+Read-only inspection of CURRENT `/app/main.py` found a deterministic application bug:
 
 ```text
-parent strict mode
--> nested AgentField reasoner call boundary
--> stale/partial registered child contract may omit source_strictness
--> child defaults to mixed semantics
--> full A1 retrieval differs from the directly verified strict child behavior
+initial research stream
+  -> passes source_strictness to execute_intelligence_stream_comprehensive ✅
+
+continue_research / expansion stream
+  -> does not expose/pass source_strictness
+  -> child falls back to default "mixed" ❌
 ```
 
-A second independently evidenced defect remains after retrieval: when admissible evidence is insufficient, the writer can still fill factual gaps from model knowledge instead of abstaining.
+Therefore a strict research run can silently degrade during expansion even when the first research pass is strict.
 
-## Current 30-minute batch — strict-policy propagation across AgentField child boundary
+### P0 — evidence gaps can still become unsupported prose
 
-BMAD route semantics: `bmad-help -> bmad-quick-dev`. CURRENT AgentField discovery exposes no BMAD skill, so do not pretend a BMAD action ran; apply the same stages/DoD discipline directly.
+Full A1 also proved a separate upper-layer defect: when admissible evidence is incomplete, the writer can still emit externally verifiable facts from model knowledge despite prompt instructions to abstain. This requires programmatic evidence-sufficiency enforcement if it persists after strict retrieval is fixed.
+
+### P1 — end-to-end citation faithfulness is not yet proven
+
+Lower-layer exact-source entailment is working, but the final report is not yet independently re-verified claim-by-claim after writing. A citation adjacent to a sentence is not sufficient proof that every material claim is entailed.
+
+## Current 30-minute batch — strict propagation through initial and expansion paths
+
+BMAD route semantics: `bmad-help -> bmad-quick-dev`. If no callable BMAD skill exists in CURRENT tools, apply the same stages/DoD discipline directly and do not pretend the skill ran.
 
 ### Goal
 
-Make full AgentField Deep Research preserve strict-source semantics across the nested child-reasoner boundary without mutating Lane B registry/source-loop control-plane state.
+Make `source_strictness` a preserved research-policy invariant across both the initial and continuation/expansion paths, then re-run the same semantic A1 gate.
 
 ### DoD
 
-1. Inspect the CURRENT AgentField SDK/decorator schema generation and nested-call serialization path enough to explain why local Python signature and registered child schema diverge.
-2. Add a targeted regression reproducing strictness loss at the parent→child call boundary, or an equivalent deterministic contract test if the SDK boundary cannot be instantiated cheaply.
-3. Implement the smallest Lane A-safe fix so strict semantics reach the child execution even under the current registry state.
-4. Direct child canary proves primary-source strict behavior through the same call path used by the full pipeline.
-5. Full repository regression suite remains green.
-6. Rerun the same A1 prompt only after lower gates PASS.
-7. A1 PASS only if material externally verifiable claims are supported by cited sources; if evidence remains insufficient, the report must abstain rather than fill gaps.
+1. Add a targeted regression that fails when strict mode is lost in `continue_research` expansion.
+2. Extend the continuation/expansion contract to accept and pass `source_strictness` explicitly.
+3. Apply the same strict query augmentation/policy to expansion queries where applicable.
+4. Targeted regression PASS.
+5. Full repository suite remains green.
+6. Live AgentField canary proves the runtime-loaded reasoner preserves strict policy through the path exercised by the full pipeline.
+7. Rerun the same A1 prompt with the same acceptance criteria.
+8. A1 PASS only if every material externally verifiable claim is supported by cited evidence; otherwise the output must expose the evidence gap instead of filling it.
 
 ### Stop / replan conditions
 
-- If SDK schema generation is locally wrong and safely fixable in application usage, fix the application/decorator contract and retest.
-- If duplicate/stale registry selection is the failing layer, do not clean registry in Lane A; make the product call path robust to it or hand the registry finding to Lane B.
-- If strict semantics propagate correctly but source coverage remains incomplete, return to retrieval coverage.
-- If source coverage becomes adequate but writer still invents claims, move immediately to programmatic evidence-sufficiency/abstention enforcement.
-
-## CURRENT validation blocker — permanent DEV source-pin mismatch
-
-Status: `VALIDATION_BLOCKER` for runtime/E2E, not an AgentField Deep Research application failure.
-
-Observed during the current batch:
-- permanent DEV is materialized from `universal-solver` with Deep Research pinned to `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
-- this `PLAN.md` and its coordination corrections advanced `n0namer/af-deep-research:dev` beyond that historical pin;
-- `reconcile_dev_workspace.sh` intentionally fails closed when `target_sha != current origin/dev`;
-- after a stop/start recovery attempt the Deep Research container exits `31` with `target is not current origin/dev`, while the shared `/deep-src` volume remains preserved and still contains the container-first product delta;
-- the Source Loop/pin/reconciliation contract is Lane B-owned and MUST NOT be patched from Lane A merely to bypass this guard.
-
-Consequence:
-- lower-level source evidence remains preserved;
-- full runtime canaries and A1 are blocked until Lane B reconciles the permanent DEV source contract with the moving product `dev`, or provides an agreed Lane A-safe runtime path;
-- do not misclassify this as a regression in `main.py` or document generation.
-
-Current Lane A source delta preserved in shared DEV volume:
-- `main.py` — strict query augmentation + pre-cap source-policy prioritization + strictness propagation attempt;
-- `doc_generation_pipeline.py` — exact-source entailment gate;
-- `tests/test_agent.py` — associated regressions;
-- last verified suite before the lifecycle interruption: `20/20 PASS`.
-
-One next bounded move while runtime is blocked:
-- hand the source-pin mismatch finding to Lane B through the canonical coordination SoT;
-- resume product mutation only through a path that can still provide validation evidence; do not add speculative changes that cannot be exercised.
+- If strict propagation is correct but required primary evidence is still absent, return to retrieval coverage/query policy rather than touching the writer.
+- If required evidence is present but the writer still adds unsupported facts, implement the smallest programmatic `Answer Contract / coverage / abstention` gate before further prompt tuning.
+- If the draft is evidence-bound but citation mapping still fails, add post-generation atomic claim/citation verification.
+- Do not implement later architecture primitives merely because they are in the target architecture; require a demonstrated failing layer or acceptance-gate need.
 
 ## Subsequent gates
 
