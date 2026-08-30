@@ -7,9 +7,9 @@ Coordination SoT: `n0namer/universal-solver/docs/runbooks/agentfield-dev-debug-t
 
 ## North Star
 
-Real task -> DeepSeek -> real retrieval -> source-entailing evidence -> faithful citations -> a clear, useful, decision-grade research report with explicit uncertainty.
+Real task -> AgentField Deep Research -> real retrieval -> source-entailing evidence -> faithful citations -> a clear, useful, decision-grade research report with explicit uncertainty.
 
-Deep Research is not DONE when a reasoner returns HTTP 200 or a high internal quality score. It is DONE only when unseen research tasks are solved with supported claims, correct and complete citations, adequate source coverage, and graceful abstention when evidence is insufficient.
+The product under test is the **AgentField Deep Research system**, not any particular underlying LLM. The model is a replaceable runtime dependency/provider choice. Deep Research is not DONE when a reasoner returns HTTP 200 or a high internal quality score. It is DONE only when unseen research tasks are solved with supported claims, correct and complete citations, adequate source coverage, and graceful abstention when evidence is insufficient.
 
 ## Lane boundary
 
