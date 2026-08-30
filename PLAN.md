@@ -68,49 +68,53 @@ Accepted evidence from the current container-only source-entailment increment:
 
 ## Current open product defect
 
-The latest full A1 after the source-entailment fix still failed semantically.
+The strict-primary-source retrieval increment is now locally proven but full A1 still fails semantically.
 
-Observed failure shape:
-- strict research did not guarantee adequate primary-source coverage before the article cap;
-- the research package could contain high-quality but incomplete admissible evidence;
-- the writer could still state factual claims over remaining evidence gaps.
+Fresh evidence after the latest live DEV patch:
+- `/app` modified files: `main.py`, `doc_generation_pipeline.py`, `tests/test_agent.py`;
+- regression suite: `20/20 PASS`;
+- explicit `site:rfc-editor.org` provider canaries return official RFC 9000 and RFC 9114 pages;
+- direct/local `execute_intelligence_stream_comprehensive(..., source_strictness="strict")` selects RFC 9000/9114 among the capped articles;
+- full `execute_deep_research` A1 still produced incomplete/generic evidence and unsupported dated claims;
+- local Python signature contains `source_strictness`, while the CURRENT registered `/reasoners` schema for `execute_intelligence_stream_comprehensive` does not expose that field;
+- CURRENT AgentField registry simultaneously reports two active `meta_deep_research` registrations for the same endpoint `http://deep-research:8001` (versions `1.0.0` and `3.0.0`). This is registry drift evidence, not permission for Lane A to perform registry cleanup.
 
-Current root-cause hypothesis with runtime evidence:
+Current failing-layer hypothesis:
 
 ```text
-strict query augmentation is largely generic "official primary source"
--> search results are interleaved
--> MAX_ARTICLES_PER_TASK cap is applied
--> strict admissibility happens too late to guarantee primary-source coverage
--> needed primary documents can be excluded
+parent strict mode
+-> nested AgentField reasoner call boundary
+-> stale/partial registered child contract may omit source_strictness
+-> child defaults to mixed semantics
+-> full A1 retrieval differs from the directly verified strict child behavior
 ```
 
-Direct provider canary showed explicit primary-source queries such as `site:rfc-editor.org RFC 9000 QUIC` and `site:rfc-editor.org RFC 9114 HTTP/3` return the expected official RFC pages, so the next fix belongs in Deep Research search strategy/prioritization rather than provider availability.
+A second independently evidenced defect remains after retrieval: when admissible evidence is insufficient, the writer can still fill factual gaps from model knowledge instead of abstaining.
 
-## Current 30-minute batch — strict primary-source retrieval before cap
+## Current 30-minute batch — strict-policy propagation across AgentField child boundary
 
-BMAD route semantics: `bmad-help -> bmad-quick-dev`. If a callable BMAD skill is not present in the CURRENT tool surface, do not pretend it ran; use the same stages/DoD discipline directly.
+BMAD route semantics: `bmad-help -> bmad-quick-dev`. CURRENT AgentField discovery exposes no BMAD skill, so do not pretend a BMAD action ran; apply the same stages/DoD discipline directly.
 
 ### Goal
 
-Prevent strict research packages from losing needed admissible primary sources to the generic article cap.
+Make full AgentField Deep Research preserve strict-source semantics across the nested child-reasoner boundary without mutating Lane B registry/source-loop control-plane state.
 
 ### DoD
 
-1. Add a targeted regression reproducing the cap/policy failure.
-2. In strict mode, preserve/prioritize admissible primary-source candidates before the global article cap.
-3. Direct primary-source search canary still returns expected official RFC 9000/9114 pages.
-4. Full repository regression suite remains green.
-5. Reload only if required for changed code.
-6. Rerun the same A1 prompt with the same parameters.
-7. A1 PASS only if each key externally verifiable claim is actually supported by the cited source; if evidence remains insufficient, the report must abstain instead of filling from model knowledge.
+1. Inspect the CURRENT AgentField SDK/decorator schema generation and nested-call serialization path enough to explain why local Python signature and registered child schema diverge.
+2. Add a targeted regression reproducing strictness loss at the parent→child call boundary, or an equivalent deterministic contract test if the SDK boundary cannot be instantiated cheaply.
+3. Implement the smallest Lane A-safe fix so strict semantics reach the child execution even under the current registry state.
+4. Direct child canary proves primary-source strict behavior through the same call path used by the full pipeline.
+5. Full repository regression suite remains green.
+6. Rerun the same A1 prompt only after lower gates PASS.
+7. A1 PASS only if material externally verifiable claims are supported by cited sources; if evidence remains insufficient, the report must abstain rather than fill gaps.
 
 ### Stop / replan conditions
 
-- If the verified primary-source query is not generated, fix query augmentation first.
-- If the query is generated but provider results are bad, inspect provider/query semantics before ranking changes.
-- If primary docs are retrieved but dropped before document generation, fix pre-cap prioritization/admissibility.
-- If source coverage is adequate but writer still invents claims, move to gap-aware abstention prompt/programmatic gate.
+- If SDK schema generation is locally wrong and safely fixable in application usage, fix the application/decorator contract and retest.
+- If duplicate/stale registry selection is the failing layer, do not clean registry in Lane A; make the product call path robust to it or hand the registry finding to Lane B.
+- If strict semantics propagate correctly but source coverage remains incomplete, return to retrieval coverage.
+- If source coverage becomes adequate but writer still invents claims, move immediately to programmatic evidence-sufficiency/abstention enforcement.
 
 ## Subsequent gates
 
