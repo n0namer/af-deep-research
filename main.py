@@ -1909,6 +1909,7 @@ async def continue_research(
     research_scope: int = 3,
     max_research_loops: int = 2,
     num_parallel_streams: int = 2,
+    source_strictness: str = "mixed",
     model: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> ModeAwareResearchResponse:
@@ -1998,15 +1999,19 @@ async def continue_research(
         expansion_results: List[StreamOutput] = []
 
         for i, stream in enumerate(expansion_streams):
+            expansion_queries = _augment_queries_for_source_policy(
+                stream.get("search_queries", []), source_strictness
+            )
             stream_result = await execute_intelligence_stream_comprehensive(
                 f"Expansion_{stream['stream_name']}",
-                stream.get("search_queries", []),
+                expansion_queries,
                 f"Expansion focus: {stream['analysis_focus']}",
                 sub_classification.core_subject,
                 sub_classification.key_question,
                 max_existing_id + 1000 + (i * 100),
                 model,
                 api_key,
+                source_strictness=source_strictness,
             )
             expansion_results.append(stream_result)
 

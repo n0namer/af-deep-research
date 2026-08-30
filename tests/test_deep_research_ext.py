@@ -182,3 +182,18 @@ def test_verification_bridge_marks_supported_conflict_as_disputed_not_verified()
     assert verified.claims[0].support_state == "source_entailed"
     contract = build_answer_contract("Question", source_strictness="strict")
     assert assess_candidate_coverage(contract, verified).verified_coverage_ratio == 0.0
+
+
+def test_continue_research_preserves_strictness_contract_and_child_policy():
+    import ast
+    from pathlib import Path
+
+    tree = ast.parse(Path('/app/main.py').read_text())
+    fn = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == 'continue_research')
+    arg_names = [arg.arg for arg in fn.args.args]
+    assert 'source_strictness' in arg_names
+
+    child_calls = [node for node in ast.walk(fn) if isinstance(node, ast.Call) and getattr(node.func, 'id', None) == 'execute_intelligence_stream_comprehensive']
+    assert child_calls
+    assert all(any(kw.arg == 'source_strictness' for kw in call.keywords) for call in child_calls)
+    assert any(getattr(node.func, 'id', None) == '_augment_queries_for_source_policy' for node in ast.walk(fn) if isinstance(node, ast.Call))
