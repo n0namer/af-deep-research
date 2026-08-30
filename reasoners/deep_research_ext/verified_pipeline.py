@@ -14,6 +14,7 @@ async def execute_verified_pipeline(
     prepare_research_package: Callable[..., Awaitable[Any]],
     generate_document_from_package: Callable[..., Awaitable[Any]],
     upstream_kwargs: Dict[str, Any],
+    ai_call=None,
 ) -> Any:
     """Run upstream phases with an additive evidence-state checkpoint between them."""
     started = time.time()
@@ -27,6 +28,7 @@ async def execute_verified_pipeline(
         source_strictness=upstream_kwargs["source_strictness"],
         model=upstream_kwargs.get("model"),
         api_key=upstream_kwargs.get("api_key"),
+        ai_call=ai_call,
     )
     package = dict(research.research_package)
     requirement_ids = [item.requirement_id for item in trace.answer_contract.requirements]

@@ -11,6 +11,7 @@ def install_verified_deep_research(
     execute_deep_research: Callable[..., Awaitable[Any]],
     prepare_research_package: Optional[Callable[..., Awaitable[Any]]] = None,
     generate_document_from_package: Optional[Callable[..., Awaitable[Any]]] = None,
+    ai_call=None,
 ) -> Callable[..., Awaitable[Any]]:
     if getattr(app, "_verified_deep_research_installed", False):
         return getattr(app, "_verified_deep_research_reasoner")
@@ -57,6 +58,7 @@ def install_verified_deep_research(
                 prepare_research_package=prepare_research_package,
                 generate_document_from_package=generate_document_from_package,
                 upstream_kwargs=upstream_kwargs,
+                ai_call=ai_call,
             )
         return await adapter.execute(trace=trace, upstream_kwargs=upstream_kwargs)
 

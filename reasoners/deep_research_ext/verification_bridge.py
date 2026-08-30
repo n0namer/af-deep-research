@@ -5,7 +5,7 @@ from .evidence_ledger import EvidenceLedger
 
 ADJUDICATION_BATCH_SIZE = 25
 
-async def verify_ledger_claims(*, ledger: EvidenceLedger, research_package: dict, source_strictness: str, model: Optional[str] = None, api_key: Optional[str] = None, adjudicator: Callable[..., Awaitable[AIAssessmentList]] = adjudicate_evidence_ai) -> EvidenceLedger:
+async def verify_ledger_claims(*, ledger: EvidenceLedger, research_package: dict, source_strictness: str, model: Optional[str] = None, api_key: Optional[str] = None, ai_call=None, adjudicator: Callable[..., Awaitable[AIAssessmentList]] = adjudicate_evidence_ai) -> EvidenceLedger:
     normalized = _normalize_source_strictness(source_strictness)
     articles = {int(a.get('id')): a for a in research_package.get('source_articles', []) if a.get('id') is not None}
     facts = []
@@ -18,7 +18,7 @@ async def verify_ledger_claims(*, ledger: EvidenceLedger, research_package: dict
     if normalized == 'verified-only' and not facts:
         raise ValueError('No eligible evidence remains for verified ledger adjudication.')
     batches = [facts[start:start + ADJUDICATION_BATCH_SIZE] for start in range(0, len(facts), ADJUDICATION_BATCH_SIZE)]
-    results = await asyncio.gather(*(adjudicator(batch, normalized, model=model, api_key=api_key) for batch in batches))
+    results = await asyncio.gather(*(adjudicator(batch, normalized, model=model, api_key=api_key, **({'ai_call': ai_call} if ai_call is not None else {})) for batch in batches))
     assessments = [assessment for result in results for assessment in result.assessments]
     by_id = {a.fact_id: a for a in assessments}
     updated = []

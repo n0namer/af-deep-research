@@ -3232,6 +3232,7 @@ install_verified_deep_research(
     execute_deep_research,
     prepare_research_package,
     generate_document_from_package,
+    ai_with_dynamic_params,
 )
 
 
