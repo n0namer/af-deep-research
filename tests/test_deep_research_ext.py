@@ -128,3 +128,57 @@ def test_no_candidate_evidence_recommends_more_research():
     ledger = EvidenceLedger(sources=[], claims=[], created_at="now")
     coverage = assess_candidate_coverage(contract, ledger)
     assert assess_stopping(coverage).recommendation == "continue_research"
+
+
+def test_verification_bridge_promotes_only_source_entailed_verified_claims():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.stopping import assess_stopping
+    from reasoners.deep_research_ext.verification_bridge import verify_ledger_claims
+
+    package = {
+        "source_articles": [{"id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x", "content": "RFC 9000 specifies QUIC."}],
+        "article_evidence": [{"article_id": 1, "facts": ["RFC 9000 specifies QUIC.", "Google invented HTTP/3."], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, ["R1"])
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        assert strictness == "verified-only"
+        return AIAssessmentList(assessments=[
+            AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
+            AIAssessment(fact_id=batch[1].fact_id, is_allowed=True, is_source_supported=False, is_verified=True, disagreement_score=0.0),
+        ])
+
+    verified = asyncio.run(verify_ledger_claims(ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator))
+    assert verified.claims[0].status == "verified"
+    assert verified.claims[0].support_state == "source_entailed"
+    assert verified.claims[1].status == "overturned"
+    assert verified.claims[1].support_state == "unsupported"
+
+    contract = build_answer_contract("What does RFC 9000 specify?", research_type="technical", source_strictness="strict")
+    coverage = assess_candidate_coverage(contract, verified)
+    assert coverage.verified_coverage_ratio == 1.0
+    assert assess_stopping(coverage).recommendation == "eligible_to_stop"
+
+
+def test_verification_bridge_marks_supported_conflict_as_disputed_not_verified():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.verification_bridge import verify_ledger_claims
+
+    package = {
+        "source_articles": [{"id": 1, "title": "Source", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x", "content": "Claim text."}],
+        "article_evidence": [{"article_id": 1, "facts": ["Claim text."], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, ["R1"])
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.8)])
+
+    verified = asyncio.run(verify_ledger_claims(ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator))
+    assert verified.claims[0].status == "disputed"
+    assert verified.claims[0].support_state == "source_entailed"
+    contract = build_answer_contract("Question", source_strictness="strict")
+    assert assess_candidate_coverage(contract, verified).verified_coverage_ratio == 0.0

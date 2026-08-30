@@ -5,6 +5,7 @@ from .coverage import assess_candidate_coverage
 from .evidence_ledger import build_evidence_ledger
 from .models import ExtensionTrace
 from .stopping import assess_stopping
+from .verification_bridge import verify_ledger_claims
 
 
 async def execute_verified_pipeline(
@@ -30,6 +31,13 @@ async def execute_verified_pipeline(
     package = dict(research.research_package)
     requirement_ids = [item.requirement_id for item in trace.answer_contract.requirements]
     ledger = build_evidence_ledger(package, requirement_ids)
+    ledger = await verify_ledger_claims(
+        ledger=ledger,
+        research_package=package,
+        source_strictness=upstream_kwargs["source_strictness"],
+        model=upstream_kwargs.get("model"),
+        api_key=upstream_kwargs.get("api_key"),
+    )
     coverage = assess_candidate_coverage(trace.answer_contract, ledger)
     stopping = assess_stopping(coverage)
 

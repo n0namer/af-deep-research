@@ -24,6 +24,9 @@ class EvidenceClaim(BaseModel):
     requirement_ids: List[str] = Field(default_factory=list)
     status: ClaimStatus = "unverified"
     support_state: SupportState = "candidate_extracted"
+    admissible: Optional[bool] = None
+    source_verified: Optional[bool] = None
+    disagreement_score: float = 0.0
     exact_span: Optional[str] = None
     source_independence_group: Optional[str] = None
 
