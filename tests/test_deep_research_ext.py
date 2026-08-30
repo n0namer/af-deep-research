@@ -197,3 +197,90 @@ def test_continue_research_preserves_strictness_contract_and_child_policy():
     assert child_calls
     assert all(any(kw.arg == 'source_strictness' for kw in call.keywords) for call in child_calls)
     assert any(getattr(node.func, 'id', None) == '_augment_queries_for_source_policy' for node in ast.walk(fn) if isinstance(node, ast.Call))
+
+
+def test_answer_contract_decomposition_splits_multi_part_request_without_answers():
+    from reasoners.deep_research_ext.requirement_decomposition import RequirementProposal, RequirementProposalList, decompose_answer_contract
+
+    contract = build_answer_contract(
+        "Using primary sources, identify the RFC numbers for HTTP/3 and QUIC transport, the month/year each was published, and the direct standards lineage from Google QUIC to IETF QUIC. Distinguish protocol ancestry from standard publication.",
+        source_strictness="strict",
+        research_type="technical",
+    )
+
+    async def fake_ai(**kwargs):
+        return RequirementProposalList(requirements=[
+            RequirementProposal(question="Identify the RFC number for QUIC transport.", required_source_class="primary_standard"),
+            RequirementProposal(question="Identify the publication month/year for the QUIC transport RFC.", required_source_class="primary_standard"),
+            RequirementProposal(question="Identify the RFC number for HTTP/3.", required_source_class="primary_standard"),
+            RequirementProposal(question="Identify the publication month/year for the HTTP/3 RFC.", required_source_class="primary_standard"),
+            RequirementProposal(question="Establish the standards lineage from Google QUIC to IETF QUIC using primary evidence.", claim_type="lineage", required_source_class="primary_or_first_party"),
+            RequirementProposal(question="Distinguish protocol ancestry from the publication of the resulting standards.", claim_type="distinction", required_source_class="primary_or_authoritative"),
+        ])
+
+    decomposed = asyncio.run(decompose_answer_contract(contract, ai_call=fake_ai))
+    assert [r.requirement_id for r in decomposed.requirements] == ["R1", "R2", "R3", "R4", "R5", "R6"]
+    assert "9000" not in " ".join(r.question for r in decomposed.requirements)
+    assert "9114" not in " ".join(r.question for r in decomposed.requirements)
+    assert decomposed.requirements[4].claim_type == "lineage"
+
+
+def test_claim_requirement_mapping_routes_relevance_without_changing_truth_state():
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.requirement_mapping import ClaimRequirementMap, ClaimRequirementMapList, map_claims_to_requirements
+
+    contract = build_answer_contract("Research standards", research_type="technical")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="What RFC specifies QUIC transport?"),
+        ResearchRequirement(requirement_id="R2", question="When was that RFC published?"),
+        ResearchRequirement(requirement_id="R3", question="What is the Google QUIC to IETF QUIC lineage?"),
+    ]})
+    package = {
+        "source_articles": [{"id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x"}],
+        "article_evidence": [{"article_id": 1, "facts": [
+            "RFC 9000 specifies QUIC transport.",
+            "RFC 9000 was published in May 2021.",
+            "This source says nothing about Google QUIC lineage.",
+        ], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, [])
+    before = [(c.status, c.support_state) for c in ledger.claims]
+
+    async def fake_ai(**kwargs):
+        return ClaimRequirementMapList(mappings=[
+            ClaimRequirementMap(claim_id="A1-C1", requirement_ids=["R1"]),
+            ClaimRequirementMap(claim_id="A1-C2", requirement_ids=["R2"]),
+            ClaimRequirementMap(claim_id="A1-C3", requirement_ids=[]),
+        ])
+
+    mapped = asyncio.run(map_claims_to_requirements(ledger=ledger, contract=contract, ai_call=fake_ai))
+    assert mapped.claims[0].requirement_ids == ["R1"]
+    assert mapped.claims[1].requirement_ids == ["R2"]
+    assert mapped.claims[2].requirement_ids == []
+    assert [(c.status, c.support_state) for c in mapped.claims] == before
+
+
+def test_requirement_level_coverage_does_not_overcount_verified_claims():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger
+    from reasoners.deep_research_ext.models import ResearchRequirement
+
+    contract = build_answer_contract("multi requirement")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="A"),
+        ResearchRequirement(requirement_id="R2", question="B"),
+        ResearchRequirement(requirement_id="R3", question="C"),
+    ]})
+    ledger = EvidenceLedger(
+        sources=[],
+        created_at="now",
+        claims=[
+            EvidenceClaim(claim_id="C1", text="supports A", source_id=1, requirement_ids=["R1"], status="verified", support_state="source_entailed"),
+            EvidenceClaim(claim_id="C2", text="candidate B", source_id=1, requirement_ids=["R2"], status="unverified", support_state="candidate_extracted"),
+        ],
+    )
+    coverage = assess_candidate_coverage(contract, ledger)
+    assert coverage.verified_coverage_ratio == 0.3333
+    assert coverage.candidate_coverage_ratio == 0.6667
+    assert [r.status for r in coverage.requirements] == ["verified", "candidate_evidence_present", "no_candidate_evidence"]

@@ -2,6 +2,7 @@ from typing import Any, Awaitable, Callable, Optional
 from .methodology import select_methodology
 from .models import ExtensionTrace
 from .task_contract import build_answer_contract
+from .requirement_decomposition import decompose_answer_contract
 from .upstream_adapter import UpstreamDeepResearchAdapter
 from .verified_pipeline import execute_verified_pipeline
 
@@ -36,6 +37,13 @@ def install_verified_deep_research(
         api_key: Optional[str] = None,
     ) -> Any:
         contract = build_answer_contract(query, decision=decision, research_type=research_type, source_strictness=source_strictness, as_of=as_of)
+        if ai_call is not None:
+            contract = await decompose_answer_contract(
+                contract,
+                ai_call=ai_call,
+                model=model,
+                api_key=api_key,
+            )
         methods = select_methodology(contract, research_scope=research_scope, research_focus=research_focus, verification_level=verification_level)
         trace = ExtensionTrace(answer_contract=contract, method_selection=methods, upstream_behavior_changed=False)
         upstream_kwargs = {
