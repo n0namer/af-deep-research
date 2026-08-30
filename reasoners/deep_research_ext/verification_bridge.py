@@ -17,11 +17,9 @@ async def verify_ledger_claims(*, ledger: EvidenceLedger, research_package: dict
         facts.append(FactForAdjudication(fact_id=claim.claim_id, content=claim.text, source_id=claim.source_id, source_type=source_type, source_reliability_score=reliability, source_text=str(article.get('content') or '')))
     if normalized == 'verified-only' and not facts:
         raise ValueError('No eligible evidence remains for verified ledger adjudication.')
-    assessments = []
-    for start in range(0, len(facts), ADJUDICATION_BATCH_SIZE):
-        batch = facts[start:start + ADJUDICATION_BATCH_SIZE]
-        result = await adjudicator(batch, normalized, model=model, api_key=api_key)
-        assessments.extend(result.assessments)
+    batches = [facts[start:start + ADJUDICATION_BATCH_SIZE] for start in range(0, len(facts), ADJUDICATION_BATCH_SIZE)]
+    results = await asyncio.gather(*(adjudicator(batch, normalized, model=model, api_key=api_key) for batch in batches))
+    assessments = [assessment for result in results for assessment in result.assessments]
     by_id = {a.fact_id: a for a in assessments}
     updated = []
     for claim in ledger.claims:
