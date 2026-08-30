@@ -181,13 +181,128 @@ Make `source_strictness` a preserved research-policy invariant across both the i
 - If the draft is evidence-bound but citation mapping still fails, add post-generation atomic claim/citation verification.
 - Do not implement later architecture primitives merely because they are in the target architecture; require a demonstrated failing layer or acceptance-gate need.
 
-## Subsequent gates
+## Semantic acceptance ladder
 
-Do not skip semantic gates:
-- after A1 true PASS -> A2 contradiction/architecture task;
-- after A2 PASS -> A3 false-premise task;
-- then A4 current-trend, A5 temporal/freshness, A6 decision-matrix;
-- only after A1-A6 semantic acceptance prepare final Lane A handoff with exact `WORKING_DEV_SHA`.
+Do not skip gates or replace semantic evidence with health/tests alone.
+
+### A1 — authoritative standards / citation faithfulness
+
+Purpose: prove strict retrieval, source coverage, source-entailing claims, citation correctness and abstention behavior on the RFC 9000 / RFC 9114 / Google QUIC lineage task.
+
+PASS requires:
+- RFC 9000 and RFC 9114 identifiers and publication dates supported by authoritative primary evidence;
+- lineage claims supported by admissible evidence or explicitly left unresolved;
+- no fabricated title/date/status/source;
+- every material claim supported by its cited evidence;
+- no model-memory completion across evidence gaps.
+
+### A2 — contradiction handling
+
+Purpose: prove the system can represent conflicting evidence, distinguish disagreement causes and synthesize without silently averaging sources.
+
+Likely primitive if current pipeline fails: contradiction ledger/graph with source authority, date and semantic-scope comparison.
+
+### A3 — false-premise detection
+
+Purpose: prove the system can challenge an incorrect premise before building an explanation around it.
+
+Likely primitive if needed: explicit premise checker tied to the Answer Contract.
+
+### A4 — current / changing evidence
+
+Purpose: prove retrieval and synthesis on a topic whose state changes over time.
+
+Required behavior: current evidence must outrank stale but previously authoritative evidence when the question is about `now` / current state.
+
+### A5 — temporal correctness / freshness
+
+Purpose: prove explicit `as_of` reasoning and distinction among event date, publication date, update date and retrieval date.
+
+Likely primitive if needed: typed temporal evidence metadata and supersession checks.
+
+### A6 — decision-grade multi-source synthesis
+
+Purpose: prove the system can compare alternatives, expose trade-offs, preserve uncertainty and produce a useful decision matrix without inventing unsupported comparative claims.
+
+Likely primitive if needed: compositional multi-source support and FACT / INFERENCE / HYPOTHESIS typing.
+
+Only after A1-A6 semantic acceptance prepare final Lane A handoff with exact `WORKING_DEV_SHA`.
+
+## Failure-driven growth backlog
+
+These are **candidate capability increments**, ordered by expected product value. They are not automatically authorized implementation tasks; promote one into the active 30-minute batch only when a failing semantic gate or benchmark demonstrates the need.
+
+1. **Answer Contract / requirement coverage** — decompose the user task into explicit research requirements, required source classes, temporal constraints and completion criteria.
+2. **Evidence Ledger** — central durable in-run state for atomic claims, exact source spans, source class, provenance, timestamps, entailment, contradiction and requirement coverage.
+3. **Programmatic evidence sufficiency / abstention gate** — prevent unsupported requirements from becoming prose even when the writer prompt is violated.
+4. **Post-generation atomic claim verifier** — re-extract material claims from the draft and verify each against cited evidence before release.
+5. **Contradiction graph** — preserve support/contradiction relationships and resolve based on semantic scope, authority and recency rather than averaging.
+6. **Temporal evidence model** — `event_date`, `publication_date`, `last_updated`, `retrieval_date`, `as_of`, and supersession state.
+7. **Source-policy by claim type** — choose authoritative evidence classes according to the claim: standards, legal, scientific, financial, current product state, historical analysis, etc.
+8. **Source independence / provenance clustering** — prevent five derivative articles from counting as five independent confirmations of one upstream source.
+9. **Negative-evidence semantics** — distinguish `contradicted`, `not found`, `search exhausted`, `no authoritative evidence`, and `unknown`.
+10. **FACT / INFERENCE / HYPOTHESIS typing** — preserve epistemic status throughout planning, synthesis and writing.
+11. **Adaptive stopping by marginal evidence gain** — continue research only while required coverage is incomplete and credible new evidence can still be acquired.
+12. **Multi-source compositional attribution** — support claims that legitimately require multiple sources while preventing unsupported A+B=>C leaps.
+13. **Exact evidence span + content provenance** — retain exact supporting paragraph/span, retrieval timestamp and content identity/hash where practical.
+14. **Indirect prompt-injection boundary** — treat retrieved pages as untrusted data and prevent embedded instructions from affecting control flow or secrets/tools.
+15. **Frozen + live evaluation split** — deterministic corpus for regression plus live-web evaluation for real-world retrieval quality.
+16. **Repeatability evaluation** — run important tasks multiple times and measure claim/citation/source stability rather than accepting a single stochastic PASS.
+17. **Human-reviewed golden calibration set** — small stable set for checking automated judges and preventing judge drift.
+
+## Evaluation scorecard
+
+Do not collapse product quality into one internal `quality_score`. Record the failing layer.
+
+| Layer | Core metrics / checks |
+| --- | --- |
+| Task analysis | requirement coverage; premise correctness |
+| Retrieval | evidence recall/coverage; context relevance; source-policy compliance; source diversity |
+| Evidence | atomic extraction precision; exact-source entailment; provenance/independence; freshness |
+| Reasoning | contradiction handling; temporal correctness; FACT/INFERENCE/HYPOTHESIS separation; gap detection |
+| Generation | unsupported material claim rate; answer relevance; task fulfillment; abstention correctness |
+| Citations | citation correctness/entailment; citation completeness; source identity accuracy |
+| Robustness | repeatability; search variance sensitivity; provider degradation behavior |
+| Security | indirect prompt-injection success rate; secret/tool instruction isolation |
+| Operations | latency; cost; error rate; trace completeness |
+
+### Strict-mode target thresholds
+
+These are product engineering acceptance targets, not claims that the academic literature guarantees these exact numbers:
+
+```text
+fabricated citations / source titles / dates = 0
+unsupported material factual claims          = 0
+material-claim citation entailment            = 100%
+required-answer coverage                      = 100% OR explicit unresolved gap
+successful indirect prompt injection          = 0
+```
+
+## Benchmark strategy
+
+Use two complementary evaluation planes:
+
+```text
+Frozen benchmark
+  -> fixed tasks + fixed retrieved corpus
+  -> deterministic regression / root-cause isolation
+
+Live-web benchmark
+  -> same capability classes against current providers/web
+  -> production retrieval quality / freshness / robustness
+```
+
+After A1-A6, expand to a broader unseen set across factual, technical, scientific, current-state, conflicting-evidence, false-premise and decision-support tasks. Then add repeated runs and adversarial web-content tests.
+
+A single successful run is not sufficient proof for a stochastic research system. Important gates should eventually record repeated-run stability for material claims and citations.
+
+## Product defaults unless explicitly changed
+
+- **Trustworthiness > completeness > latency > cost.**
+- Prefer primary/official evidence where the claim type makes primary evidence authoritative; use strong secondary synthesis where primary material is conceptually insufficient.
+- If evidence is incomplete, return the supported subset plus explicit unresolved gaps.
+- Expose material disagreement instead of selecting a winner silently.
+- Do not add architectural complexity unless it closes a demonstrated failure mode or materially improves benchmark evidence.
 
 ## Anti-drift rules
 
