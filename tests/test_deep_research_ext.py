@@ -284,3 +284,34 @@ def test_requirement_level_coverage_does_not_overcount_verified_claims():
     assert coverage.verified_coverage_ratio == 0.3333
     assert coverage.candidate_coverage_ratio == 0.6667
     assert [r.status for r in coverage.requirements] == ["verified", "candidate_evidence_present", "no_candidate_evidence"]
+
+
+def test_strict_incomplete_coverage_uses_programmatic_abstention_report():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.synthesis_guard import build_evidence_only_gap_response, requires_programmatic_abstention
+
+    contract = build_answer_contract("multi", source_strictness="strict")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="Identify QUIC RFC"),
+        ResearchRequirement(requirement_id="R2", question="Establish lineage"),
+    ]})
+    ledger = EvidenceLedger(
+        created_at="now",
+        sources=[EvidenceSource(source_id=1, title="RFC", url="https://rfc-editor.org/rfc/rfc9000", content_hash="x", source_class="primary_standard", provenance_group="rfc-editor.org", retrieved_at="now")],
+        claims=[EvidenceClaim(claim_id="C1", text="RFC 9000 specifies QUIC.", source_id=1, requirement_ids=["R1"], status="verified", support_state="source_entailed")],
+    )
+    coverage = assess_candidate_coverage(contract, ledger)
+    assert requires_programmatic_abstention("strict", coverage) is True
+    response = build_evidence_only_gap_response(contract=contract, ledger=ledger, coverage=coverage, metadata={"x": 1})
+    assert response.mode == "verified_partial"
+    assert "RFC 9000 specifies QUIC. [1]" in response.research_package["sections"][0]["content"]
+    assert "Insufficient verified evidence" in response.research_package["sections"][1]["content"]
+    assert "R2" in response.research_package["executive_summary"]
+
+
+def test_mixed_mode_does_not_force_programmatic_abstention():
+    from reasoners.deep_research_ext.coverage import CoverageState
+    from reasoners.deep_research_ext.synthesis_guard import requires_programmatic_abstention
+    assert requires_programmatic_abstention("mixed", CoverageState(candidate_coverage_ratio=0.0, verified_coverage_ratio=0.0)) is False
