@@ -3227,7 +3227,12 @@ async def execute_deep_research(
 # Upgrade-friendly verified Deep Research extension. Keep upstream endpoint unchanged.
 from reasoners.deep_research_ext import install_verified_deep_research
 
-install_verified_deep_research(app, execute_deep_research)
+install_verified_deep_research(
+    app,
+    execute_deep_research,
+    prepare_research_package,
+    generate_document_from_package,
+)
 
 
 # ==============================================================================

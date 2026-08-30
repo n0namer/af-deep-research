@@ -74,3 +74,57 @@ def test_main_registers_additive_verified_reasoner_with_extension_schema():
     assert "decision" in props
     assert "as_of" in props
     assert any(r["id"] == "execute_deep_research" for r in main.app.reasoners)
+
+
+def test_evidence_ledger_keeps_extracted_facts_unverified_and_tracks_provenance():
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+
+    package = {
+        "source_articles": [
+            {"id": 1, "title": "RFC", "url": "https://www.rfc-editor.org/rfc/rfc9000", "content_hash": "h1"},
+            {"id": 2, "title": "RFC copy", "url": "https://rfc-editor.org/info/rfc9000", "content_hash": "h2"},
+        ],
+        "article_evidence": [
+            {"article_id": 1, "facts": ["RFC 9000 defines QUIC version 1."], "quotes": []},
+            {"article_id": 2, "facts": ["RFC 9000 was published in May 2021."], "quotes": []},
+        ],
+    }
+    ledger = build_evidence_ledger(package, ["R1"])
+    assert len(ledger.claims) == 2
+    assert all(c.status == "unverified" for c in ledger.claims)
+    assert all(c.support_state == "candidate_extracted" for c in ledger.claims)
+    assert ledger.summary()["independent_provenance_groups"] == 1
+    assert ledger.sources[0].source_class == "primary_standard"
+
+
+def test_candidate_coverage_is_not_verification_and_does_not_allow_stop():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.stopping import assess_stopping
+
+    contract = build_answer_contract("What does RFC 9000 specify?", research_type="technical")
+    ledger = build_evidence_ledger(
+        {
+            "source_articles": [{"id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x"}],
+            "article_evidence": [{"article_id": 1, "facts": ["RFC 9000 defines QUIC."], "quotes": []}],
+        },
+        ["R1"],
+    )
+    coverage = assess_candidate_coverage(contract, ledger)
+    stop = assess_stopping(coverage)
+    assert coverage.candidate_coverage_ratio == 1.0
+    assert coverage.verified_coverage_ratio == 0.0
+    assert coverage.requirements[0].status == "candidate_evidence_present"
+    assert stop.recommendation == "insufficient_verification_signal"
+    assert stop.coverage_complete is False
+
+
+def test_no_candidate_evidence_recommends_more_research():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceLedger
+    from reasoners.deep_research_ext.stopping import assess_stopping
+
+    contract = build_answer_contract("Unknown question")
+    ledger = EvidenceLedger(sources=[], claims=[], created_at="now")
+    coverage = assess_candidate_coverage(contract, ledger)
+    assert assess_stopping(coverage).recommendation == "continue_research"
