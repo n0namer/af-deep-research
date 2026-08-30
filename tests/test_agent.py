@@ -7,7 +7,10 @@ from pydantic import BaseModel
 
 import main
 from doc_generation_pipeline import (
+    AIAssessment,
     AIAssessmentList,
+    FactForAdjudication,
+    adjudicate_evidence_ai,
     _classify_source,
     _normalize_source_strictness,
     _source_allowed_by_policy,
@@ -184,3 +187,41 @@ def test_query_fair_retrieval_interleaves_before_article_cap() -> None:
         "https://q2/1",
         "https://q3/1",
     ]
+
+
+def test_adjudicator_receives_exact_source_text_and_requires_entailment() -> None:
+    captured = {}
+
+    async def fake_ai(*, user, schema, **kwargs):
+        captured["prompt"] = user
+        return AIAssessmentList(
+            assessments=[
+                AIAssessment(
+                    fact_id="f1",
+                    is_allowed=True,
+                    is_source_supported=False,
+                    is_verified=True,
+                    disagreement_score=0.0,
+                )
+            ]
+        )
+
+    result = asyncio.run(
+        adjudicate_evidence_ai(
+            [
+                FactForAdjudication(
+                    fact_id="f1",
+                    content="Google QUIC was standardized by the IETF.",
+                    source_id=7,
+                    source_type="primary_doc",
+                    source_reliability_score=1.0,
+                    source_text="The QUIC Working Group was chartered in 2016.",
+                )
+            ],
+            "verified-only",
+            ai_call=fake_ai,
+        )
+    )
+    assert "The QUIC Working Group was chartered in 2016." in captured["prompt"]
+    assert "directly stated or semantically entailed" in captured["prompt"]
+    assert result.assessments[0].is_source_supported is False
