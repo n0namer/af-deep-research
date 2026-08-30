@@ -134,11 +134,25 @@ def _augment_queries_for_source_policy(
         query = str(raw_query or "").strip()
         if not query:
             continue
-        for candidate in (query, f"{query} official primary source"):
+        candidates = [query, f"{query} official primary source"]
+        if any(t in query.lower() for t in ("rfc", "ietf", "http/", "http3", "http/3", "quic", "internet standard", "protocol specification")):
+            candidates += [f"{query} site:rfc-editor.org", f"{query} site:datatracker.ietf.org"]
+        for candidate in candidates:
             if candidate not in seen:
                 seen.add(candidate)
                 augmented.append(candidate)
     return augmented
+
+
+def _prioritize_search_results_for_source_policy(results: List[Dict], source_strictness: str) -> List[Dict]:
+    if _normalize_source_strictness(source_strictness) != "verified-only":
+        return list(results)
+    def p(item: Dict) -> int:
+        t, _ = _classify_source(str(item.get("url") or ""))
+        if t == "primary_doc": return 0
+        if t in {"gov", "peer_reviewed", "reputable_media"}: return 1
+        return 2
+    return [item for _, item in sorted(enumerate(results), key=lambda x: (p(x[1]), x[0]))]
 
 
 def _interleave_unique_search_results(search_results_lists: List[List[Dict]]) -> List[Dict]:
@@ -1394,6 +1408,7 @@ async def execute_intelligence_stream_comprehensive(
     start_article_id: int,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
+    source_strictness: str = "mixed",
 ) -> StreamOutput:
     """Comprehensive intelligence stream execution with full article/evidence collection."""
 
@@ -1411,6 +1426,7 @@ async def execute_intelligence_stream_comprehensive(
 
     # Process and deduplicate articles while preserving fair query coverage.
     unique_results = _interleave_unique_search_results(search_results_lists)
+    unique_results = _prioritize_search_results_for_source_policy(unique_results, source_strictness)
 
     source_articles: List[Article] = []
     article_id_counter = start_article_id
@@ -1669,6 +1685,7 @@ async def prepare_research_package(
                 article_id_offset + (i * 100),
                 model,
                 api_key,
+                source_strictness=source_strictness,
             )
             stream_results.append(stream_result)
 

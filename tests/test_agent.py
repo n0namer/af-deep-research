@@ -157,8 +157,12 @@ def test_strict_research_adds_primary_source_companion_queries() -> None:
     assert main._augment_queries_for_source_policy(queries, "strict") == [
         "HTTP/3 RFC 9114",
         "HTTP/3 RFC 9114 official primary source",
+        "HTTP/3 RFC 9114 site:rfc-editor.org",
+        "HTTP/3 RFC 9114 site:datatracker.ietf.org",
         "QUIC RFC 9000",
         "QUIC RFC 9000 official primary source",
+        "QUIC RFC 9000 site:rfc-editor.org",
+        "QUIC RFC 9000 site:datatracker.ietf.org",
     ]
 
 
