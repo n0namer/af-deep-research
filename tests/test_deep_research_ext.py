@@ -315,3 +315,56 @@ def test_mixed_mode_does_not_force_programmatic_abstention():
     from reasoners.deep_research_ext.coverage import CoverageState
     from reasoners.deep_research_ext.synthesis_guard import requires_programmatic_abstention
     assert requires_programmatic_abstention("mixed", CoverageState(candidate_coverage_ratio=0.0, verified_coverage_ratio=0.0)) is False
+
+
+def test_verified_pipeline_skips_writer_when_strict_requirement_is_unverified(monkeypatch):
+    from reasoners.deep_research_ext import verified_pipeline as vp
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
+    from reasoners.deep_research_ext.models import ExtensionTrace, ResearchRequirement
+    from reasoners.deep_research_ext.methodology import select_methodology
+
+    contract = build_answer_contract("multi", source_strictness="strict")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="Identify RFC"),
+        ResearchRequirement(requirement_id="R2", question="Establish lineage"),
+    ]})
+    trace = ExtensionTrace(answer_contract=contract, method_selection=select_methodology(contract))
+    ledger = EvidenceLedger(
+        created_at="now",
+        sources=[EvidenceSource(source_id=1, title="RFC", url="https://rfc-editor.org/rfc/rfc9000", content_hash="x", source_class="primary_standard", provenance_group="rfc-editor.org", retrieved_at="now")],
+        claims=[EvidenceClaim(claim_id="C1", text="RFC 9000 specifies QUIC.", source_id=1, requirement_ids=["R1"], status="verified", support_state="source_entailed")],
+    )
+
+    async def fake_prepare(**kwargs):
+        return SimpleNamespace(research_package={"source_articles": [], "article_evidence": []}, metadata={"research": True})
+
+    async def fake_map(**kwargs):
+        return ledger
+
+    async def fake_verify(**kwargs):
+        return ledger
+
+    writer_called = {"value": False}
+    async def fake_writer(**kwargs):
+        writer_called["value"] = True
+        raise AssertionError("writer must not run for strict incomplete coverage")
+
+    monkeypatch.setattr(vp, "build_evidence_ledger", lambda package, requirement_ids: ledger)
+    monkeypatch.setattr(vp, "map_claims_to_requirements", fake_map)
+    monkeypatch.setattr(vp, "verify_ledger_claims", fake_verify)
+
+    result = asyncio.run(vp.execute_verified_pipeline(
+        trace=trace,
+        prepare_research_package=fake_prepare,
+        generate_document_from_package=fake_writer,
+        upstream_kwargs={
+            "query": "multi", "mode": "general", "research_focus": 1, "research_scope": 1,
+            "max_research_loops": 1, "num_parallel_streams": 1, "tension_lens": "balanced",
+            "source_strictness": "strict", "evidence_style": "standard",
+            "analysis_depth": "ANALYTICAL_BRIEF", "model": None, "api_key": None,
+        },
+        ai_call=lambda **kwargs: None,
+    ))
+    assert writer_called["value"] is False
+    assert result.mode == "verified_partial"
+    assert result.metadata["verified_research_extension"]["mode"] == "programmatic_partial_abstention"
