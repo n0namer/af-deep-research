@@ -368,3 +368,44 @@ def test_verified_pipeline_skips_writer_when_strict_requirement_is_unverified(mo
     assert writer_called["value"] is False
     assert result.mode == "verified_partial"
     assert result.metadata["verified_research_extension"]["mode"] == "programmatic_partial_abstention"
+
+
+def test_final_verifier_rejects_uncited_material_claim():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.final_verifier import DraftClaim, DraftClaimList, verify_final_document
+    document = {
+        "executive_summary": "RFC 9000 was published in May 2021 [1]. Google invented HTTP/3.",
+        "sections": [],
+        "source_notes": [{"citation_id": 1, "title": "RFC 9000", "url": "https://rfc-editor.org/rfc/rfc9000", "domain": "rfc-editor.org"}],
+    }
+    research = {"source_articles": [{"id": 1, "title": "RFC 9000", "url": "https://rfc-editor.org/rfc/rfc9000", "content": "RFC 9000 was published in May 2021."}]}
+    async def fake_extract(**kwargs):
+        return DraftClaimList(claims=[
+            DraftClaim(claim_id="D1", text="RFC 9000 was published in May 2021.", citation_ids=[1]),
+            DraftClaim(claim_id="D2", text="Google invented HTTP/3.", citation_ids=[]),
+        ])
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0)])
+    state = asyncio.run(verify_final_document(document_package=document, research_package=research, source_strictness="strict", ai_call=lambda **kwargs: None, claim_extractor=fake_extract, adjudicator=fake_adjudicator))
+    assert state.material_claim_count == 2
+    assert state.supported_claim_count == 1
+    assert state.passed is False
+    assert state.unsupported_claims[0].reason == "material_claim_has_no_citation"
+
+
+def test_final_verifier_accepts_when_every_material_claim_is_cited_and_entailed():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.final_verifier import DraftClaim, DraftClaimList, verify_final_document
+    document = {
+        "executive_summary": "RFC 9000 specifies QUIC [1].",
+        "sections": [],
+        "source_notes": [{"citation_id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "domain": "rfc-editor.org"}],
+    }
+    research = {"source_articles": [{"id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "content": "RFC 9000 specifies QUIC."}]}
+    async def fake_extract(**kwargs):
+        return DraftClaimList(claims=[DraftClaim(claim_id="D1", text="RFC 9000 specifies QUIC.", citation_ids=[1])])
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0)])
+    state = asyncio.run(verify_final_document(document_package=document, research_package=research, source_strictness="strict", ai_call=lambda **kwargs: None, claim_extractor=fake_extract, adjudicator=fake_adjudicator))
+    assert state.passed is True
+    assert state.supported_claim_count == 1

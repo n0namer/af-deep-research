@@ -8,6 +8,7 @@ from .requirement_mapping import map_claims_to_requirements
 from .stopping import assess_stopping
 from .synthesis_guard import build_evidence_only_gap_response, requires_programmatic_abstention
 from .verification_bridge import verify_ledger_claims
+from .final_verifier import verify_final_document
 
 
 async def execute_verified_pipeline(
@@ -83,6 +84,26 @@ async def execute_verified_pipeline(
     )
     metadata = dict(getattr(document, "metadata", {}) or {})
     metadata.update(base_metadata)
+
+    if (upstream_kwargs["source_strictness"] or "").strip().lower() in {"strict", "verified-only", "verified_only"}:
+        final_verification = await verify_final_document(
+            document_package=document.research_package,
+            research_package=package,
+            source_strictness=upstream_kwargs["source_strictness"],
+            ai_call=ai_call,
+            model=upstream_kwargs.get("model"),
+            api_key=upstream_kwargs.get("api_key"),
+        )
+        ext["final_verification"] = final_verification.model_dump()
+        if not final_verification.passed:
+            ext["mode"] = "post_generation_rejected"
+            return build_evidence_only_gap_response(
+                contract=trace.answer_contract,
+                ledger=ledger,
+                coverage=coverage,
+                metadata=metadata,
+            )
+
     if hasattr(document, "model_copy"):
         return document.model_copy(update={"metadata": metadata})
     document.metadata = metadata

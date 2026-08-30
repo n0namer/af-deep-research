@@ -61,11 +61,11 @@ def build_evidence_only_gap_response(
         + "Only source-entailed verified claims are shown below."
     )
     document = FinalDocument(
-        document_title="Verified Research — Partial Evidence Report",
+        document_title=("Verified Research — Partial Evidence Report" if unresolved else "Verified Research — Evidence-Only Report"),
         executive_summary=summary,
         sections=sections,
         source_notes=source_notes,
-        disclaimers=["This strict-mode report is intentionally incomplete where verified evidence is insufficient."],
+        disclaimers=[("This strict-mode report is intentionally incomplete where verified evidence is insufficient." if unresolved else "The free-form synthesis was withheld; this report contains only verified source-entailed evidence." )],
     )
     return DocumentResponse(
         mode="verified_partial",
