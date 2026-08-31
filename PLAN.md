@@ -168,11 +168,17 @@ Interpretation: the epistemic firewall is working fail-closed at the final gate,
 
 The sequential final-verifier bottleneck is fixed in accepted permanent-DEV source. `final_verifier.py` now uses bounded concurrency (default `6`), preserves deterministic claim/result order and claim-to-source attribution, and fails closed per claim on ordinary adjudicator exceptions. Fresh evidence: compile PASS, targeted verifier regression `4 PASS`, full suite `43 PASS`, controlled scheduling-layer check about `0.604s -> 0.101s` for 12 identical 50ms adjudications. Runtime loading of this accepted source is still pending.
 
-### P0 — restore permanent DEV runtime on the accepted source
+### CLOSED — permanent DEV runtime restored on accepted source
 
-The current blocker is runtime recovery, not product implementation. The original `deep-research` container was cleanly stopped while attempting same-runtime reload; Docker restart policy `on-failure` did not restart a clean exit. Native Coolify compose recovery then failed because `control-plane-build` attempted GitHub access without usable credentials. The validated `/app` source volume is preserved and new-generation containers exist in `created` state.
+The current Deep Research container is running and healthy on the preserved `/app` volume. Accepted verifier/test hashes match the validated source, `/app/.git/HEAD` remains detached at `2cb0814d...`, and live schema proves `execute_verified_deep_research` + `max_gap_rounds` are loaded. No application redeploy is required for the current product loop.
 
-DoD for recovery: start the existing required DEV containers without GitHub/build/source reconciliation; prove the `deep-research` container mounts the preserved `/app` volume and accepted hashes; prove runtime health and AgentField registration; prove loaded `execute_verified_deep_research` schema exposes `max_gap_rounds`; then proceed directly to semantic canary/A1. Do not solve this by editing application code in GitHub or by redeploying source.
+### P0 — bound provider stalls before A1
+
+The current semantic canary is blocked by provider/runtime boundedness, not retrieval or verifier correctness. A strict RFC canary successfully reached authoritative retrieval and downstream evidence processing, but the configured model hit transient rate limiting and a later call stalled under AgentField's default `120s` LLM timeout + `2x` safety-net + 2 retries. Client disconnect does not cancel the server-side workflow.
+
+A minimal container-only patch is present in `/app/main.py`: default Deep Research LLM timeout `45s` (`DR_LLM_CALL_TIMEOUT_SECONDS`) and timeout retries `1` (`DR_LLM_TIMEOUT_RETRIES`). Syntax validation PASS. This patch must be proven loaded before using its behavior as evidence; current exact reload capability remains unavailable.
+
+DoD: obtain one evidenced same-container load/reload path without redeploy; prove the new timeout/retry values in the running process; rerun the minimal strict RFC canary; provider stall must fail/recover within bounded time; preserve retrieval/evidence/final-verifier semantics; then run exact A1.
 
 ### P0 — A1 semantic acceptance is still not achieved
 
