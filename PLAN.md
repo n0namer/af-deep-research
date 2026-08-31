@@ -108,15 +108,15 @@ A release handoff is ready only when:
 
 ## CURRENT evidence — 2026-08-31
 
-Permanent DEV remains the active Lane A workspace and is intentionally ahead of durable Git while semantic acceptance is still in progress.
+Permanent DEV source remains the active Lane A workspace and is intentionally ahead of durable Git while semantic acceptance is still in progress. The `/app` source volume is preserved, but the `deep-research` service process is currently **not running** after a controlled reload/recovery attempt; production remains untouched.
 
 Fresh CURRENT readback:
-- `/app` git HEAD: `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
-- native dirty set: `doc_generation_pipeline.py`, `main.py`, `tests/test_agent.py`, untracked `reasoners/deep_research_ext/`, untracked `tests/test_deep_research_ext.py`;
-- `final_verifier.py` SHA-256: `ad47b288c9038b43facbbb6a7b2343411cac54b2fafe43511c33314658cbb132`;
-- `tests/test_deep_research_ext.py` SHA-256: `516e0eb87998b9ee4cc8d526d88b5f1332b5377688ce89c56c289ba1b46ca141`;
-- AgentField runtime previously observed as `3.0.0`; permanent DEV remains the target, production remains out of scope;
-- CURRENT source contains `max_gap_rounds: int = 1` in the verified endpoint/bootstrap path, but loaded permanent-DEV reasoner-schema exposure has not yet been freshly re-proven after the latest source edits;
+- preserved `/app` git HEAD: `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
+- preserved native dirty set before service stop: `doc_generation_pipeline.py`, `main.py`, `tests/test_agent.py`, untracked `reasoners/deep_research_ext/`, untracked `tests/test_deep_research_ext.py`;
+- current accepted `final_verifier.py` SHA-256: `0bd8255472f9a887d90eabd92e5b308646a12797de6c8eead04925ab59df7205`;
+- current accepted `tests/test_deep_research_ext.py` SHA-256: `f29e2f71e265557f677bf5aae4ab5518f929b2db013f8ee3f6e6686673fe2e0e`;
+- AgentField runtime was previously observed as `3.0.0`; the permanent DEV target must be restored and re-read before any new runtime claim;
+- CURRENT source contains `max_gap_rounds: int = 1`; loaded permanent-DEV reasoner-schema exposure is still unproven because the service has not yet restarted on the accepted source;
 - fresh pre-patch baseline: targeted final-verifier tests `3 PASS`, full repository suite `42 PASS`;
 - bounded-parallel final-verifier source patch is now present directly in permanent DEV `/app`: default concurrency `6`, deterministic gather order, per-claim fail-closed exception handling;
 - fresh post-patch validation: compile PASS, targeted final-verifier tests `4 PASS`, full repository suite `43 PASS`;
