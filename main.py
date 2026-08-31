@@ -2445,13 +2445,25 @@ Make the classification adaptive to any domain while maintaining analytical rigo
 </instructions>
 """
 
-    return await ai_with_dynamic_params(
-        system="You are a Meta-Research Strategy Classifier who determines optimal intelligence gathering approaches for any domain. You specialize in identifying research intent and designing comprehensive investigation strategies.",
-        user=prompt,
-        schema=QueryClassification,  # Reuse schema but treat it as universal
-        model=model,
-        api_key=api_key,
-    )
+    try:
+        return await asyncio.wait_for(
+            ai_with_dynamic_params(
+                system="You are a Meta-Research Strategy Classifier who determines optimal intelligence gathering approaches for any domain. You specialize in identifying research intent and designing comprehensive investigation strategies.",
+                user=prompt,
+                schema=QueryClassification,  # Reuse schema but treat it as universal
+                model=model,
+                api_key=api_key,
+            ),
+            timeout=float(os.getenv("DR_QUERY_CLASSIFICATION_TIMEOUT_SECONDS", "25")),
+        )
+    except Exception:
+        lowered = query.lower()
+        technical = any(token in lowered for token in ("rfc", "quic", "http/3", "protocol", "standard", "software", "api"))
+        return QueryClassification(
+            query_type="Technology_Assessment" if technical else "Entity_Analysis",
+            core_subject=" ".join(query.split())[:240],
+            key_question=" ".join(query.split()),
+        )
 
 
 @app.reasoner()
