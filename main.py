@@ -35,6 +35,7 @@ from doc_generation_pipeline import (
 
 
 AI_CALL_CONCURRENCY_LIMIT = 20
+STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_STRUCTURED_EXTRACTION_CONCURRENCY", "2"))
 MAX_ARTICLES_PER_TASK = 10
 NUM_SEARCH_TERMS_PER_TASK = 3
 # A hard safety limit on the number of task execution loops.
@@ -2709,7 +2710,7 @@ Find the most important relationships in this iteration:
         extract_relationships_from_batch_iterative(batch) for batch in evidence_batches
     ]
     relationship_batch_results = await run_in_batches(
-        relationship_extraction_tasks, AI_CALL_CONCURRENCY_LIMIT
+        relationship_extraction_tasks, STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT
     )
 
     all_relationships = [
