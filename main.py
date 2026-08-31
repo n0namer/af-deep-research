@@ -218,6 +218,9 @@ async def run_in_batches(tasks: List, batch_size: int):
         batch_results = await asyncio.gather(*batch, return_exceptions=True)
         auth_errors = [r for r in batch_results if isinstance(r, Exception) and _is_provider_auth_error(r)]
         if auth_errors:
+            for pending in tasks[i + batch_size :]:
+                if asyncio.iscoroutine(pending):
+                    pending.close()
             raise auth_errors[0]
         results.extend(batch_results)
     return [r for r in results if not isinstance(r, Exception)]
