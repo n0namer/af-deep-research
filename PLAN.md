@@ -360,8 +360,8 @@ CURRENT evaluation milestones:
 
 Next evaluation DoD:
 1. DONE — contradiction-loss is instrumented end-to-end: `disputed + source_entailed` claims are preserved in evidence-only delivery, structured contradiction requirement ids are emitted in `verified_research_extension.contradictions`, semantic requirement state becomes `contradicted`, and `silent_contradiction_loss` is the deterministic count of detected contradiction requirements missing from delivered contradiction metadata.
-2. Instrument false-premise adoption without inferring zeros from absence; add an explicit premise-check state tied to the Answer Contract before synthesis.
-3. Instrument prompt-injection success without trusting retrieved instructions; prefer deterministic boundary evidence over narrative heuristics.
+2. DONE — false-premise adoption is instrumented fail-closed. `ResearchRequirement.role` now distinguishes `answer` from `premise_check`; decomposition may mark explicit user premises for verification. Evidence-only delivery emits `verified_research_extension.premise_checks.challenged_requirement_ids`, and `false_premise_adoption` counts contradicted premise requirements not structurally challenged in delivery.
+3. DONE — prompt-injection success is instrumented with a deterministic boundary check. High-confidence instruction-like retrieved content is identified from source text; `prompt_injection_success` counts such sources only when they enter the delivered citation set. Evidence-only source notes now include only actually used verified/disputed source-entailed sources, so unused adversarial retrieval cannot create a false positive.
 4. Add paired live-web cases for freshness/provider robustness only after provider availability is healthy enough for meaningful runs; keep live scores separate from frozen regression.
 5. Run capability gates 3x and release-critical gates 5x when live execution cost/availability permits, using the repeated-run aggregator.
 6. Maintain a small human-reviewed golden set for citation entailment/support calibration; LLM-as-judge remains soft-metric only and cannot override hard gates.
