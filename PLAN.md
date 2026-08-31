@@ -196,40 +196,40 @@ Do not bypass this guardrail with opaque shell edits, token extraction, helper c
 
 Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — delivery verification semantics, then A1
+## Current 30-minute batch — exact A1 full task
 
 BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
 ### Goal
 
-Separate rejected free-form draft audit state from the semantic acceptance of the report actually delivered to the user. A fully covered evidence-only fallback built exclusively from verified source-entailed claims may PASS delivery verification while the rejected writer draft remains preserved as an audit failure. No redeploy/rebuild/GitHub-code transport.
+Close the full A1 semantic gate from this SoT, not only the narrow RFC-number canary. No redeploy/rebuild/GitHub-code transport.
 
 ### Fresh evidence / localization
 
-- the latest strict RFC canary completed server-side in about `756.6s` versus the previous ~`978s` baseline;
-- retrieval/evidence lower gates were strong: verified coverage `1.0`, 68 verified claims, strict primary evidence available;
-- final free-form draft verification still failed: 41 material claims, 7 supported, 34 rejected, dominated by missing/wrong citation mapping at the writer boundary;
-- the system already delivered an evidence-only fallback built from verified source-entailed claims, but old semantics labelled even a fully covered fallback `verified_partial`;
-- CURRENT `/app/reasoners/deep_research_ext/synthesis_guard.py` now contains a container-only delivery-semantics patch: full verified coverage + no unresolved requirements -> `mode=verified_evidence_only` and `delivery_verification.passed=true`; partial coverage remains `verified_partial`;
-- deterministic direct checks PASS for both cases: full coverage -> `verified_evidence_only` / delivery PASS; 0.5 coverage -> `verified_partial` / delivery FAIL;
-- regression `test_full_coverage_evidence_only_report_is_delivery_verified` is present in `/app/tests/test_deep_research_ext.py`; `py_compile` PASS. Current runtime image still lacks `pytest`, so a canonical pytest rerun remains a validation blocker rather than evidence of failure.
+- narrow strict RFC-number canary completed on live runtime as workflow `run_1788184782007_002a3885`, root execution `exec_1788184782008_6104ac80`;
+- runtime duration ~`769.2s`; internal `total_orchestration_time_seconds=492.25`; research phase ~`390.9s`;
+- evidence state: 10 primary-standard sources, 133 claims, 104 verified, 23 overturned, 6 unverified, 2 independent provenance groups, verified coverage `1.0`;
+- free-form draft remained correctly rejected: 50 material claims, 15 supported, 35 unsupported, dominated by missing/wrong citation binding;
+- delivered evidence-only fallback passed live delivery verification: `delivery_verification.passed=true`, `mode=verified_evidence_only`, no unresolved requirements;
+- this proves delivery-semantics and provider-boundedness behavior, but it is **not full A1 PASS** because the canary query covered only the RFC number and did not exercise RFC 9114 publication dates + Google QUIC lineage required by the A1 contract below;
+- live logs also prove bounded provider retry is loaded (`retry 1/1`) and can recover after rate-limit/fresh-connection-pool resets;
+- CURRENT `/app` HEAD remains `2cb0814deda4a9ab9158a4f9a876728e6977a799`; native `git status --short` remains the expected dirty Lane-A workspace: `doc_generation_pipeline.py`, `main.py`, `tests/test_agent.py`, untracked `reasoners/deep_research_ext/`, untracked `tests/test_deep_research_ext.py`.
 
 ### DoD
 
-1. Preserve the final verifier fail-closed behavior: rejected writer draft remains `post_generation_rejected` and its `final_verification.passed=false` audit evidence is not rewritten.
-2. Fully verified evidence-only delivery (`verified_coverage_ratio=1.0`, no unresolved requirements, source-entailed verified claims only) returns `verified_evidence_only` with `delivery_verification.passed=true`.
-3. Any unresolved requirement / coverage below 1.0 remains `verified_partial` with delivery FAIL.
-4. Compile + deterministic regression behavior PASS on CURRENT `/app`; run canonical pytest when a valid runner becomes available, but do not redeploy merely to obtain pytest.
-5. Prove the patch is loaded through a non-redeploy runtime lifecycle/readback before using live behavior as acceptance evidence.
-6. Run exact A1. PASS only if the **delivered report** has zero unsupported material factual claims and every required item is covered or explicitly unresolved; rejected draft remains visible in audit trace and cannot masquerade as a clean writer PASS.
-7. After A1 PASS, next 80/20 reliability batch is Durable `ResearchRun` checkpoint/resume, followed by replay regression fixtures; do not rebuild already-existing Evidence Ledger or novelty stopping.
+1. Run the full A1 task covering RFC 9000, RFC 9114, publication dates, and Google QUIC lineage with strict authoritative-source policy and `max_gap_rounds=1`.
+2. RFC 9000 and RFC 9114 identifiers + publication dates must be supported by authoritative primary evidence.
+3. Google QUIC lineage claims must be source-entailed or explicitly unresolved; no model-memory completion.
+4. Delivered report must have zero unsupported material factual claims; full verified evidence-only delivery is acceptable when the writer draft is rejected, provided audit state remains visible.
+5. No fabricated title/date/status/source; citation entailment for every delivered material claim.
+6. Record execution/run ids, latency, evidence counts, coverage, final-verifier result, and delivered mode.
+7. If A1 PASS, immediately promote Durable `ResearchRun` checkpoint/resume as the next 30-minute reliability batch, followed by replay regression fixtures; do not rebuild Evidence Ledger or novelty stopping already present.
 
 ### Stop / replan conditions
 
-- If exact same-container load/reload remains unavailable, do not redeploy. Record `CAPABILITY_GAP` and preserve the healthy source/runtime state.
-- If A1 delivery still contains unsupported claims, localize the exact delivery path before adding architecture.
-- If A1 passes only through evidence-only delivery, treat writer citation-boundary quality as a separate optimization, not as permission to weaken final verification.
-- After A1, prioritize Durable ResearchRun/checkpoint/resume over duplicating Evidence Ledger/non-convergence mechanisms already present in CURRENT source.
+- If full A1 FAILS, patch only the exact failing semantic boundary in `/app`, validate, and rerun A1; do not start post-A1 architecture early.
+- If full A1 PASSes only through evidence-only delivery, writer citation-boundary quality remains a separate optimization and final verifier stays fail-closed.
+- No redeploy/rebuild/StartApplication/RestartApplication for this inner loop.
 
 ## Semantic acceptance ladder
 
