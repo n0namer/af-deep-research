@@ -207,9 +207,11 @@ Establish a deterministic heterogeneous evaluation spine now, then resume the ex
 ### Fresh evidence / localization
 
 - ADR `docs/adr/ADR-0001-deep-research-evaluation-system.md` is ACCEPTED and defines four planes: anchors, frozen regression, live-web, adversarial/mutation; hard epistemic gates precede soft quality scoring;
-- CURRENT `/app/reasoners/deep_research_ext/evaluation.py` now implements the fixture/requirement/observation contracts, deterministic hard-gate evaluator, and six heterogeneous pilots across standards, science/contradiction, current-state/freshness, history/false-premise, business/partial-evidence abstention, and software/provenance-adversarial;
-- CURRENT `/app/tests/test_evaluation_suite.py` contains three focused regressions: heterogeneous coverage, explicit unresolved acceptance, and fail-closed rejection on wrong state/unsupported claim/citation entailment below 1.0;
-- eval module + test `py_compile` PASS; direct execution of all three regressions PASS; runtime image still lacks pytest, so canonical pytest remains a validation-environment blocker;
+- CURRENT `/app/reasoners/deep_research_ext/evaluation.py` implements fixture/requirement/observation contracts, deterministic hard-gate evaluator, six heterogeneous pilots, immutable frozen-document/corpus contracts, deterministic replay, and evidence-removal mutation;
+- first real frozen corpus `DR-P01` is bound to a snapshot from the authoritative RFC Editor `rfc9000.txt` source with title/id/date evidence, source class, provenance group, role and SHA-256 content identity; a non-authoritative distractor is present but inadmissible for the strict requirement;
+- replay baseline PASS: `DR-P01` resolves `R1/R2 -> supported` using only `RFC9000-primary`; evidence-removal mutation deleting that primary source deterministically changes both requirements to `unresolved` and the hard gate FAILS, proving causal dependence on admissible evidence rather than fixture memorization;
+- CURRENT `/app/tests/test_evaluation_suite.py` now contains six focused regressions: heterogeneous coverage, explicit unresolved acceptance, fail-closed hard gates, frozen RFC replay PASS, evidence-removal mutation FAIL, and snapshot/hash stability;
+- eval module + test `py_compile` PASS; direct execution of all six regressions PASS; runtime image still lacks pytest, so canonical pytest remains a validation-environment blocker;
 - full exact A1 run `run_1788185825210_86058ba2` failed at the requirement-mapping provider boundary, not a semantic gate: unrestricted mapping batches hit `90s` timeout after retry `1/1` and raised HTTP 500;
 - CURRENT `/app/reasoners/deep_research_ext/requirement_mapping.py` is patched container-first with bounded mapping concurrency `2` and fail-closed batch handling; compile + two direct regressions PASS;
 - real-provider focused proof over 31 claims returned 31/31 mappings in ~50s despite transient 502/retry behavior, without pipeline exception;
