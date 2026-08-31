@@ -122,8 +122,12 @@ Fresh CURRENT readback:
 - fresh post-patch validation: compile PASS, targeted final-verifier tests `4 PASS`, full repository suite `43 PASS`;
 - post-patch hashes: `final_verifier.py` `0bd8255472f9a887d90eabd92e5b308646a12797de6c8eead04925ab59df7205`; `tests/test_deep_research_ext.py` `f29e2f71e265557f677bf5aae4ab5518f929b2db013f8ee3f6e6686673fe2e0e`;
 - controlled in-process latency check on 12 claims with identical 50ms adjudicators: concurrency `1` ~= `0.604s`, concurrency `6` ~= `0.101s`, with identical supported-claim count (about 6x wall-clock reduction in the verifier scheduling layer);
-- loaded permanent-DEV schema is still old (`max_gap_rounds` absent), proving process reload is still required before live canary/A1;
-- a Coolify restart request for the exact DEV application was queued without rebuild/redeploy, but completion is not yet proven; current container `91dca041...` still shows the pre-restart PID/state, so do not issue a duplicate restart until post-state changes or the queued action is proven failed.
+- before the service stop, loaded permanent-DEV schema was still old (`max_gap_rounds` absent), proving process reload was required before live canary/A1;
+- a direct `SIGTERM` of PID 1 produced clean exit code 0; because the container restart policy is `on-failure`, Docker did not auto-restart it and the old `91dca041...` container was removed;
+- the `/app` source is on persistent volume `edshqtkwskg3lrczekhcmd71_us-af-e2e-deep-source`, so the validated source patch is preserved across container recreation;
+- two subsequent native Coolify application deployment jobs failed, and bounded logs localize the failure to the `control-plane-build` service attempting GitHub access without usable credentials (`could not read Username for https://github.com`); this is a runtime-recovery/control-plane defect, not a Deep Research source regression;
+- failed Coolify jobs left new-generation compose containers in `created` state, including a `deep-research` container built from the existing Deep Research image and mounted to the preserved `/app` volume; postgres/diagnostics were able to start, but control-plane/workforce/deep-research did not complete startup;
+- `coolify-sentinel` has RW `/var/run/docker.sock`, so exact existing-container start is technically available at the host layer, but the CURRENT DEV GPT executor blocks the required Docker Engine POST as `opaque_or_unknown_mutation`; do not bypass that mediation via hidden session/token extraction.
 
 Accepted application increments now present in CURRENT `/app` beyond the older PLAN state:
 - fair multi-query retrieval and strict standards query augmentation;
