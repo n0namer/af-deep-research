@@ -4,7 +4,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 from .coverage import assess_candidate_coverage
 from .evidence_ledger import build_evidence_ledger
 from .final_verifier import verify_final_document
-from .gap_research import run_gap_research_round
+from .gap_research import run_gap_research_round, unresolved_requirement_ids
 from .models import ExtensionTrace
 from .requirement_mapping import map_claims_to_requirements
 from .research_run import begin_research_run, checkpoint_research_run
@@ -100,7 +100,7 @@ async def execute_verified_pipeline(
     research_run = checkpoint_research_run(
         run_store, research_run, stage="evidence_verified",
         evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
-        open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+        open_gap_ids=tuple(unresolved_requirement_ids(coverage)),
         payload={"research_package": package, "research_phase_metadata": research_phase_metadata},
     )
     base_metadata = {
@@ -115,7 +115,7 @@ async def execute_verified_pipeline(
         research_run = checkpoint_research_run(
             run_store, research_run, stage="completed", status="completed",
             evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
-            open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+            open_gap_ids=tuple(unresolved_requirement_ids(coverage)),
             payload={"research_package": package, "research_phase_metadata": research_phase_metadata, "terminal_mode": ext["mode"]},
         )
         base_metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
@@ -141,7 +141,7 @@ async def execute_verified_pipeline(
     research_run = checkpoint_research_run(
         run_store, research_run, stage="synthesis_ready",
         evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
-        open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+        open_gap_ids=tuple(unresolved_requirement_ids(coverage)),
         payload={
             "research_package": package,
             "research_phase_metadata": research_phase_metadata,
@@ -165,7 +165,7 @@ async def execute_verified_pipeline(
             research_run = checkpoint_research_run(
                 run_store, research_run, stage="completed", status="completed",
                 evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
-                open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+                open_gap_ids=tuple(unresolved_requirement_ids(coverage)),
                 payload={
                     "research_package": package,
                     "research_phase_metadata": research_phase_metadata,
@@ -184,7 +184,7 @@ async def execute_verified_pipeline(
     research_run = checkpoint_research_run(
         run_store, research_run, stage="completed", status="completed",
         evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
-        open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+        open_gap_ids=tuple(unresolved_requirement_ids(coverage)),
         payload={
             "research_package": package,
             "research_phase_metadata": research_phase_metadata,
