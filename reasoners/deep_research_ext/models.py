@@ -8,6 +8,7 @@ VerificationLevel = Literal["normal","high","max"]
 class ResearchRequirement(BaseModel):
     requirement_id: str
     question: str
+    role: Literal["answer", "premise_check"] = "answer"
     claim_type: str = "factual"
     required_source_class: str = "appropriate_authoritative"
     temporal_requirement: Optional[str] = None

@@ -5,6 +5,7 @@ from .models import AnswerContract, ResearchRequirement
 
 class RequirementProposal(BaseModel):
     question: str
+    role: str = "answer"
     claim_type: str = "factual"
     required_source_class: str = "appropriate_authoritative"
     temporal_requirement: Optional[str] = None
@@ -45,6 +46,8 @@ Preserve explicit source-quality and temporal constraints.
 - If the user asks for a distinction between concepts, represent that distinction as its own requirement.
 - Do not merge separate requested entities when separate evidence may be needed.
 - required_source_class should describe the kind of evidence needed, not a specific answer.
+- If the user's request contains an explicit factual premise that later explanation depends on, add a separate requirement with role="premise_check" to verify/challenge that premise before synthesis. Otherwise role="answer".
+- Do not invent hidden premises; only mark propositions explicitly asserted or necessarily presupposed by the user's wording.
 </rules>
 """
     proposal = await ai_call(
@@ -64,6 +67,7 @@ Preserve explicit source-quality and temporal constraints.
             ResearchRequirement(
                 requirement_id=f"R{index}",
                 question=" ".join(item.question.split()),
+                role="premise_check" if item.role == "premise_check" else "answer",
                 claim_type=item.claim_type or "factual",
                 required_source_class=item.required_source_class or "appropriate_authoritative",
                 temporal_requirement=item.temporal_requirement or contract.as_of,
