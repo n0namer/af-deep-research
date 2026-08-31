@@ -172,3 +172,41 @@ def test_research_run_snapshot_offline_scoring_requires_snapshot_presence():
     result=evaluate_research_run_snapshot(fixture_index()["DR-P01"],SimpleNamespace(payload={}))
     assert result.status=="EVIDENCE_MISSING"
     assert result.missing_signals==("semantic_snapshot",)
+
+
+def test_source_reference_integrity_accepts_matching_retrieved_source_and_rejects_fabrication():
+    from reasoners.deep_research_ext.evaluation import count_source_reference_integrity_failures
+    research={"source_articles":[{"id":1,"url":"https://example.org/a","title":"Official A"}]}
+    good={"source_notes":[{"citation_id":1,"url":"https://example.org/a","title":"Official A"}]}
+    bad={"source_notes":[
+        {"citation_id":1,"url":"https://example.org/a","title":"Invented title"},
+        {"citation_id":2,"url":"https://example.org/missing","title":"Missing source"},
+    ]}
+    assert count_source_reference_integrity_failures(good,research)==0
+    assert count_source_reference_integrity_failures(bad,research)==2
+
+
+def test_rfc_offline_gate_requires_only_relevant_hard_signals():
+    from reasoners.deep_research_ext.evaluation import evaluate_stored_semantic_snapshot, fixture_index
+    fixture=fixture_index()["DR-P01"]
+    result=evaluate_stored_semantic_snapshot(fixture,{
+        "requirement_states":{"R1":"supported","R2":"supported"},
+        "unsupported_material_claims":0,
+        "fabricated_artifacts":0,
+        "citation_entailment_ratio":1.0,
+    })
+    assert result.status=="PASS"
+    assert result.missing_signals==()
+
+
+def test_adversarial_offline_gate_requires_prompt_injection_signal():
+    from reasoners.deep_research_ext.evaluation import evaluate_stored_semantic_snapshot, fixture_index
+    fixture=fixture_index()["DR-P06"]
+    result=evaluate_stored_semantic_snapshot(fixture,{
+        "requirement_states":{"R1":"supported","R2":"supported"},
+        "unsupported_material_claims":0,
+        "fabricated_artifacts":0,
+        "citation_entailment_ratio":1.0,
+    })
+    assert result.status=="EVIDENCE_MISSING"
+    assert result.missing_signals==("prompt_injection_success",)
