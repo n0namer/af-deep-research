@@ -196,39 +196,33 @@ Do not bypass this guardrail with opaque shell edits, token extraction, helper c
 
 Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — restore accepted runtime, then canary/A1
+## Current 30-minute batch — bound provider stalls, then canary/A1
 
 BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
 ### Goal
 
-Restore the permanent DEV runtime on the already validated `/app` source **without GitHub source editing, source reconciliation, rebuild or redeploy**, prove the new code is actually loaded, then spend the remainder of the batch on the smallest semantic canary and exact A1.
+Prove a bounded LLM-call failure policy on the already healthy accepted runtime **without redeploy/rebuild**, then rerun the smallest strict semantic canary and, only if it is healthy, exact A1.
 
 ### DoD
 
-1. Recover only the required AgentField DEV runtime containers from existing images/volumes; do not invoke GitHub clone/build as the recovery mechanism.
-2. Prove the running `deep-research` container mounts `edshqtkwskg3lrczekhcmd71_us-af-e2e-deep-source` at `/app`.
-3. Reread `/app` HEAD/status and accepted hashes; they must match the validated source batch (`final_verifier.py` `0bd825...`, verifier tests `f29e2f...`).
-4. Prove runtime health and AgentField registration on the restored process.
-5. Read back `execute_verified_deep_research` schema and prove `max_gap_rounds` is loaded.
-6. Run a small verified semantic canary and record total/final-verifier wall-clock latency against the previous ~978s total baseline.
-7. If the canary preserves fail-closed semantics and shows useful latency improvement, run exact A1 with `max_gap_rounds=1`.
-8. A1 PASS only if every material claim is entailed by admissible cited evidence or explicitly unresolved; HTTP/execution success alone remains insufficient.
-
-### Recovery strategy
-
-- Prefer exact lifecycle action on already-created containers / preserved volumes.
-- Do not trigger another full compose/source deployment while the `control-plane-build` GitHub-auth defect is unresolved.
-- Do not bypass operator mediation through hidden shell sessions, credential/token extraction or production mutation.
-- Once a healthy Deep Research runtime is restored, immediately return to product semantic validation; do not turn runtime recovery into a separate infrastructure project.
+1. Preserve current running container/source identity: container `548d35ec...`, `/app/.git/HEAD=2cb0814d...`, accepted verifier/test hashes unchanged.
+2. Load the container-only `main.py` timeout/retry patch through an exact same-container lifecycle path; no `StartApplication`, `RestartApplication`, rebuild or source redeploy.
+3. Prove running-process values: Deep Research LLM call timeout defaults to `45s`, timeout retries default to `1` unless explicitly overridden by env.
+4. Run the minimal strict RFC canary (`max_research_loops=1`, `max_gap_rounds=1`, one stream).
+5. A provider stall/rate-limit must either recover or fail within the bounded policy; it must not silently consume the full batch.
+6. Preserve strict retrieval, evidence-state, abstention and final-verifier semantics.
+7. Record canary total latency and final-verifier evidence against the previous ~978s baseline.
+8. If canary passes lower gates, run exact A1 with `max_gap_rounds=1`.
+9. A1 PASS only if every material claim is entailed by admissible cited evidence or explicitly unresolved.
 
 ### Stop / replan conditions
 
-- If no callable exact container-start/reload operation is available, report `CAPABILITY_GAP` with the existing created container IDs and preserved volume evidence; do not rebuild from GitHub merely to escape the gap.
-- If the restored runtime does not contain the accepted hashes, stop before canary and diagnose source-volume identity drift.
-- If loaded schema lacks `max_gap_rounds`, stop before A1 and diagnose process/source loading.
-- If canary latency improves but unsupported prose still triggers final rejection, classify those unsupported claim types before adding architecture.
-- If A1 passes, move to A2 contradiction handling; do not eagerly implement later backlog items.
+- If exact same-container reload remains unavailable, do not redeploy to load this patch. Record `CAPABILITY_GAP` and keep the healthy runtime intact.
+- If provider failure remains the dominant layer after bounded timeout/retry is loaded, add a provider fallback/circuit-breaker primitive only from evidence of an actually configured compatible route; do not invent model/provider names.
+- If canary reaches final verification and latency remains high there, return to verifier profiling rather than provider tuning.
+- If canary/A1 rejects unsupported prose, classify rejected claim types and evidence paths before implementing B1/B2.
+- If A1 passes, promote B1 Evidence Provenance v2 as the next 30-minute batch.
 
 ## Semantic acceptance ladder
 
