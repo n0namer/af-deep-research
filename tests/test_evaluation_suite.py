@@ -276,3 +276,24 @@ def test_repeated_run_aggregation_rejects_mixed_fixture_records():
         assert 'one fixture' in str(exc)
     else:
         raise AssertionError('mixed fixture records accepted')
+
+
+def test_holdout_lane_is_separate_from_24_case_development_core():
+    from reasoners.deep_research_ext.evaluation import frozen_core_fixtures, holdout_fixtures
+    core_ids={f.test_id for f in frozen_core_fixtures()}
+    holdout=holdout_fixtures()
+    assert len(holdout)==6
+    assert all(f.test_id.startswith('DR-H') for f in holdout)
+    assert core_ids.isdisjoint({f.test_id for f in holdout})
+
+
+def test_all_holdout_cases_replay_to_expected_pass_and_fail_when_decisive_evidence_removed():
+    from reasoners.deep_research_ext.evaluation import holdout_corpora, holdout_fixtures, remove_all_admissible_evidence, replay_frozen_fixture
+    fixtures={f.test_id:f for f in holdout_fixtures()}
+    corpora=holdout_corpora()
+    assert set(fixtures)==set(corpora)
+    for test_id in sorted(fixtures):
+        baseline=replay_frozen_fixture(fixtures[test_id],corpora[test_id])
+        assert baseline.gate.passed is True, test_id
+        mutated=replay_frozen_fixture(fixtures[test_id],remove_all_admissible_evidence(corpora[test_id]))
+        assert mutated.gate.passed is False, test_id
