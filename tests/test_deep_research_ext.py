@@ -311,6 +311,35 @@ def test_strict_incomplete_coverage_uses_programmatic_abstention_report():
     assert "R2" in response.research_package["executive_summary"]
 
 
+def test_full_coverage_evidence_only_report_is_delivery_verified():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.synthesis_guard import build_evidence_only_gap_response
+
+    contract = build_answer_contract("one", source_strictness="strict")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="Identify QUIC RFC"),
+    ]})
+    ledger = EvidenceLedger(
+        created_at="now",
+        sources=[EvidenceSource(source_id=1, title="RFC", url="https://rfc-editor.org/rfc/rfc9000", content_hash="x", source_class="primary_standard", provenance_group="rfc-editor.org", retrieved_at="now")],
+        claims=[EvidenceClaim(claim_id="C1", text="RFC 9000 specifies QUIC.", source_id=1, requirement_ids=["R1"], status="verified", support_state="source_entailed")],
+    )
+    coverage = assess_candidate_coverage(contract, ledger)
+    metadata = {"verified_research_extension": {"mode": "post_generation_rejected"}}
+    response = build_evidence_only_gap_response(contract=contract, ledger=ledger, coverage=coverage, metadata=metadata)
+    assert response.mode == "verified_evidence_only"
+    assert response.research_package["document_title"] == "Verified Research — Evidence-Only Report"
+    assert "RFC 9000 specifies QUIC. [1]" in response.research_package["sections"][0]["content"]
+    delivery = response.metadata["verified_research_extension"]["delivery_verification"]
+    assert delivery["passed"] is True
+    assert delivery["mode"] == "verified_evidence_only"
+    assert delivery["verified_coverage_ratio"] == 1.0
+    assert delivery["unresolved_requirement_ids"] == []
+    assert response.metadata["verified_research_extension"]["mode"] == "post_generation_rejected"
+
+
 def test_mixed_mode_does_not_force_programmatic_abstention():
     from reasoners.deep_research_ext.coverage import CoverageState
     from reasoners.deep_research_ext.synthesis_guard import requires_programmatic_abstention
