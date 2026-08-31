@@ -112,6 +112,13 @@ async def execute_verified_pipeline(
 
     if requires_programmatic_abstention(upstream_kwargs["source_strictness"], coverage):
         ext["mode"] = "programmatic_partial_abstention"
+        research_run = checkpoint_research_run(
+            run_store, research_run, stage="completed", status="completed",
+            evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
+            open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+            payload={"research_package": package, "research_phase_metadata": research_phase_metadata, "terminal_mode": ext["mode"]},
+        )
+        base_metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
         return build_evidence_only_gap_response(
             contract=trace.answer_contract,
             ledger=ledger,
@@ -131,6 +138,17 @@ async def execute_verified_pipeline(
     )
     metadata = dict(getattr(document, "metadata", {}) or {})
     metadata.update(base_metadata)
+    research_run = checkpoint_research_run(
+        run_store, research_run, stage="synthesis_ready",
+        evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
+        open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+        payload={
+            "research_package": package,
+            "research_phase_metadata": research_phase_metadata,
+            "document_package": getattr(document, "research_package", {}),
+        },
+    )
+    metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
 
     if (upstream_kwargs["source_strictness"] or "").strip().lower() in {"strict", "verified-only", "verified_only"}:
         final_verification = await verify_final_document(
@@ -144,6 +162,18 @@ async def execute_verified_pipeline(
         ext["final_verification"] = final_verification.model_dump()
         if not final_verification.passed:
             ext["mode"] = "post_generation_rejected"
+            research_run = checkpoint_research_run(
+                run_store, research_run, stage="completed", status="completed",
+                evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
+                open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+                payload={
+                    "research_package": package,
+                    "research_phase_metadata": research_phase_metadata,
+                    "document_package": getattr(document, "research_package", {}),
+                    "terminal_mode": ext["mode"],
+                },
+            )
+            metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
             return build_evidence_only_gap_response(
                 contract=trace.answer_contract,
                 ledger=ledger,
@@ -151,6 +181,18 @@ async def execute_verified_pipeline(
                 metadata=metadata,
             )
 
+    research_run = checkpoint_research_run(
+        run_store, research_run, stage="completed", status="completed",
+        evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
+        open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+        payload={
+            "research_package": package,
+            "research_phase_metadata": research_phase_metadata,
+            "document_package": getattr(document, "research_package", {}),
+            "terminal_mode": "verified_document",
+        },
+    )
+    metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
     if hasattr(document, "model_copy"):
         return document.model_copy(update={"metadata": metadata})
     document.metadata = metadata
