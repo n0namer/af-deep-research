@@ -1,0 +1,81 @@
+# ADR-0001 — Deep Research Evaluation System
+
+Status: Accepted
+Date: 2026-08-31
+Owner: Lane A — Deep Research
+
+## Context
+
+Deep Research is a stochastic, web-dependent evidence-processing system. A single repeated prompt is useful as a development anchor but cannot prove general research quality. Live-web runs also conflate product changes with web/provider variance.
+
+The evaluation system therefore must separate deterministic regression from live-web robustness and must measure hard epistemic invariants before soft prose quality.
+
+## Decision
+
+Adopt a versioned Deep Research evaluation system with four complementary planes:
+
+1. **Anchors** — a small unchanged set for fast pre/post-patch comparison.
+2. **Frozen regression suite** — versioned fixtures with explicit requirements, admissible evidence, distractors, stale/derivative sources and expected support/abstention/contradiction state.
+3. **Live-web suite** — paired capability classes against current providers/web for freshness and runtime robustness.
+4. **Adversarial + mutation suite** — evidence removal/replacement, duplicate provenance, stale authority, contradictions, partial evidence and indirect prompt-injection/noise to prove answers causally depend on admissible evidence.
+
+The frozen suite is organized on two orthogonal axes:
+- domain family: standards, science, software/product, history, business/decision, economics/data, legal/regulatory, current-state;
+- capability/failure class: authoritative fact, multi-hop/lineage, contradiction, false premise, partial evidence/abstention, temporal freshness, provenance independence, multi-source composition, adversarial/noise.
+
+## Hard acceptance invariants
+
+For strict gates, soft report-quality scores cannot override:
+
+- fabricated citations/sources/titles/dates = 0;
+- unsupported material factual claims = 0;
+- material-claim citation entailment = 100%;
+- required answer coverage = 100% OR explicit unresolved gap;
+- silent contradiction loss = 0;
+- false-premise adoption = 0;
+- successful indirect prompt injection = 0.
+
+## Minimum fixture contract
+
+Each frozen fixture records:
+- id, version, domain, capability/failure class;
+- query, optional `as_of`, instructions;
+- explicit requirements and criticality;
+- required/disallowed source classes where relevant;
+- expected requirement state: `supported | unresolved | contradicted`;
+- gold claim/evidence expectations;
+- supportive, distractor, stale, derivative, contradictory and adversarial documents where needed;
+- deterministic acceptance expectations.
+
+## Scoring
+
+Do not collapse evaluation into one quality score. Record layered evidence for retrieval, evidence, reasoning, generation, citations, temporal correctness, robustness, security and operations.
+
+LLM-as-judge may score soft dimensions such as clarity/depth/usefulness only after hard gates pass. Hard factual/citation/source-policy gates remain deterministic or gold-label based.
+
+## Repeatability and holdout
+
+Development may use one run. Capability gates should use at least 3 repetitions and release-critical gates 5 when cost allows. Record material-claim, citation, source-class, abstention and latency stability, not only pass rate.
+
+Cases used to diagnose and patch a defect become development/anchor cases. Release evaluation also uses unseen holdout cases to reduce benchmark overfitting.
+
+## Implementation order
+
+1. Evaluation contract + 6 pilot frozen fixtures + deterministic evaluator.
+2. Durable `ResearchRun` / checkpoint state capture.
+3. Replay runner over stored ResearchRun/evidence state.
+4. Expand frozen core to at least 24 cases + evidence mutations.
+5. Add paired live-web cases, holdout and repeated-run gates.
+
+## Consequences
+
+Positive:
+- code changes can be compared against deterministic fixtures;
+- provider/web variance is separated from product regression;
+- failure modes become explicit capability gates;
+- evidence mutation can prove causal evidence dependence.
+
+Trade-offs:
+- gold fixtures require curation and versioning;
+- live-web scores remain stochastic;
+- a single PASS never proves release-grade reliability.
