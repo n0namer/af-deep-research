@@ -261,6 +261,44 @@ def test_claim_requirement_mapping_routes_relevance_without_changing_truth_state
     assert [(c.status, c.support_state) for c in mapped.claims] == before
 
 
+def test_requirement_mapping_bounds_concurrency_and_fails_closed():
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.requirement_mapping import ClaimRequirementMap, ClaimRequirementMapList, map_claims_to_requirements
+
+    contract = build_answer_contract("map", research_type="technical").model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="Relevant?")
+    ]})
+    package = {
+        "source_articles": [{"id": 1, "title": "S", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x"}],
+        "article_evidence": [{"article_id": 1, "facts": [f"claim {i}" for i in range(1, 6)], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, [])
+    active = 0
+    peak = 0
+
+    async def fake_ai(**kwargs):
+        nonlocal active, peak
+        import re
+        active += 1
+        peak = max(peak, active)
+        claim_id = re.search(r"(A1-C\d+):", kwargs["user"]).group(1)
+        await asyncio.sleep(0.02)
+        active -= 1
+        if claim_id == "A1-C3":
+            raise TimeoutError("provider stalled")
+        return ClaimRequirementMapList(mappings=[
+            ClaimRequirementMap(claim_id=claim_id, requirement_ids=["R1"])
+        ])
+
+    mapped = asyncio.run(map_claims_to_requirements(
+        ledger=ledger, contract=contract, ai_call=fake_ai,
+        batch_size=1, max_concurrent_batches=2,
+    ))
+    assert peak == 2
+    assert [c.requirement_ids for c in mapped.claims] == [["R1"], ["R1"], [], ["R1"], ["R1"]]
+
+
 def test_requirement_level_coverage_does_not_overcount_verified_claims():
     from reasoners.deep_research_ext.coverage import assess_candidate_coverage
     from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger
