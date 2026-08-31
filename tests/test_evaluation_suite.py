@@ -210,3 +210,38 @@ def test_adversarial_offline_gate_requires_prompt_injection_signal():
     })
     assert result.status=="EVIDENCE_MISSING"
     assert result.missing_signals==("prompt_injection_success",)
+
+
+def test_frozen_core_has_24_cases_with_broad_domain_and_failure_mode_coverage():
+    from reasoners.deep_research_ext.evaluation import frozen_core_fixtures
+    fixtures=frozen_core_fixtures()
+    assert len(fixtures)==24
+    assert len({f.test_id for f in fixtures})==24
+    assert len({f.domain for f in fixtures})>=8
+    assert len({f.capability_class for f in fixtures})>=9
+
+
+def test_all_24_frozen_core_cases_replay_to_expected_baseline_pass():
+    from reasoners.deep_research_ext.evaluation import frozen_core_corpora, frozen_core_fixtures, replay_frozen_fixture
+    fixtures={f.test_id:f for f in frozen_core_fixtures()}
+    corpora=frozen_core_corpora()
+    assert set(corpora)==set(fixtures)
+    failures=[]
+    for test_id in sorted(fixtures):
+        result=replay_frozen_fixture(fixtures[test_id],corpora[test_id])
+        if not result.gate.passed:
+            failures.append((test_id,result.gate.failures,result.observation.requirement_states))
+    assert failures==[]
+
+
+def test_all_24_frozen_core_cases_fail_after_removing_decisive_admissible_evidence():
+    from reasoners.deep_research_ext.evaluation import frozen_core_corpora, frozen_core_fixtures, remove_all_admissible_evidence, replay_frozen_fixture
+    fixtures={f.test_id:f for f in frozen_core_fixtures()}
+    corpora=frozen_core_corpora()
+    false_passes=[]
+    for test_id in sorted(fixtures):
+        mutated=remove_all_admissible_evidence(corpora[test_id])
+        result=replay_frozen_fixture(fixtures[test_id],mutated)
+        if result.gate.passed:
+            false_passes.append(test_id)
+    assert false_passes==[]
