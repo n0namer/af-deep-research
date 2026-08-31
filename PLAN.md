@@ -117,7 +117,13 @@ Fresh CURRENT readback:
 - `tests/test_deep_research_ext.py` SHA-256: `516e0eb87998b9ee4cc8d526d88b5f1332b5377688ce89c56c289ba1b46ca141`;
 - AgentField runtime previously observed as `3.0.0`; permanent DEV remains the target, production remains out of scope;
 - CURRENT source contains `max_gap_rounds: int = 1` in the verified endpoint/bootstrap path, but loaded permanent-DEV reasoner-schema exposure has not yet been freshly re-proven after the latest source edits;
-- the last repository suite evidence is `42 PASS` from the prior accepted handoff; CURRENT rerun is presently blocked by the DEV execution mediator, so this remains historical evidence rather than a fresh PASS.
+- fresh pre-patch baseline: targeted final-verifier tests `3 PASS`, full repository suite `42 PASS`;
+- bounded-parallel final-verifier source patch is now present directly in permanent DEV `/app`: default concurrency `6`, deterministic gather order, per-claim fail-closed exception handling;
+- fresh post-patch validation: compile PASS, targeted final-verifier tests `4 PASS`, full repository suite `43 PASS`;
+- post-patch hashes: `final_verifier.py` `0bd8255472f9a887d90eabd92e5b308646a12797de6c8eead04925ab59df7205`; `tests/test_deep_research_ext.py` `f29e2f71e265557f677bf5aae4ab5518f929b2db013f8ee3f6e6686673fe2e0e`;
+- controlled in-process latency check on 12 claims with identical 50ms adjudicators: concurrency `1` ~= `0.604s`, concurrency `6` ~= `0.101s`, with identical supported-claim count (about 6x wall-clock reduction in the verifier scheduling layer);
+- loaded permanent-DEV schema is still old (`max_gap_rounds` absent), proving process reload is still required before live canary/A1;
+- a Coolify restart request for the exact DEV application was queued without rebuild/redeploy, but completion is not yet proven; current container `91dca041...` still shows the pre-restart PID/state, so do not issue a duplicate restart until post-state changes or the queued action is proven failed.
 
 Accepted application increments now present in CURRENT `/app` beyond the older PLAN state:
 - fair multi-query retrieval and strict standards query augmentation;
