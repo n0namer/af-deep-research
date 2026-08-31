@@ -1,4 +1,6 @@
 from typing import List, Optional
+import asyncio
+import os
 import re
 from pydantic import BaseModel, Field
 from .models import AnswerContract, ResearchRequirement
@@ -52,12 +54,15 @@ Preserve explicit source-quality and temporal constraints.
 </rules>
 """
     try:
-        proposal = await ai_call(
-            system="You decompose research requests into evidence requirements without answering them.",
-            user=prompt,
-            schema=RequirementProposalList,
-            model=model,
-            api_key=api_key,
+        proposal = await asyncio.wait_for(
+            ai_call(
+                system="You decompose research requests into evidence requirements without answering them.",
+                user=prompt,
+                schema=RequirementProposalList,
+                model=model,
+                api_key=api_key,
+            ),
+            timeout=float(os.getenv("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS", "25")),
         )
     except Exception:
         query = " ".join(contract.query.split())
