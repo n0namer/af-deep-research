@@ -110,7 +110,7 @@ A release handoff is ready only when:
 
 ## CURRENT evidence — 2026-08-31
 
-Permanent DEV source remains the active Lane A workspace and is intentionally ahead of durable Git while semantic acceptance is still in progress. The `/app` source volume is preserved, but the `deep-research` service process is currently **not running** after a controlled reload/recovery attempt; production remains untouched.
+Permanent DEV source remains the active Lane A workspace and is intentionally ahead of durable Git while semantic acceptance is still in progress. The current `deep-research` service is now **running and healthy** on the preserved `/app` source volume; production remains untouched. Historical recovery bullets below describe how this state was reached and must not be read as the current process state.
 
 Fresh CURRENT readback:
 - preserved `/app` git HEAD: `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
