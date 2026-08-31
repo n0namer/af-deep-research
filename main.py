@@ -199,12 +199,26 @@ def create_content_hash(content: str) -> str:
     return hashlib.md5(content.encode()).hexdigest()
 
 
+def _is_provider_auth_error(exc: BaseException) -> bool:
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return (
+        "authenticationerror" in name
+        or "invalid api key" in message
+        or "missing authentication header" in message
+        or "authentication error" in message
+    )
+
+
 async def run_in_batches(tasks: List, batch_size: int):
-    """Executes a list of asyncio tasks in batches to manage rate limits."""
+    """Execute bounded batches; provider auth failures are never silently discarded."""
     results = []
     for i in range(0, len(tasks), batch_size):
         batch = tasks[i : i + batch_size]
         batch_results = await asyncio.gather(*batch, return_exceptions=True)
+        auth_errors = [r for r in batch_results if isinstance(r, Exception) and _is_provider_auth_error(r)]
+        if auth_errors:
+            raise auth_errors[0]
         results.extend(batch_results)
     return [r for r in results if not isinstance(r, Exception)]
 
@@ -1526,6 +1540,8 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
             )
             return ArticleEvidence(article_id=article.id, **ai_output.dict())
         except Exception as e:
+            if _is_provider_auth_error(e):
+                raise
             return None
 
     # Extract evidence from all articles in parallel
@@ -2699,6 +2715,8 @@ Find the most important relationships in this iteration:
                     break
 
             except Exception as e:
+                if _is_provider_auth_error(e):
+                    raise
                 break
 
             iteration += 1
