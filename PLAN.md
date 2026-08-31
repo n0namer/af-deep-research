@@ -196,39 +196,42 @@ Do not bypass this guardrail with opaque shell edits, token extraction, helper c
 
 Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — exact A1 full task
+## Current 30-minute batch — evaluation MVP + exact A1 recovery
 
 BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
 ### Goal
 
-Close the full A1 semantic gate from this SoT, not only the narrow RFC-number canary. No redeploy/rebuild/GitHub-code transport.
+Establish a deterministic heterogeneous evaluation spine now, then resume the exact A1 gate on the patched source. No redeploy/rebuild/GitHub-code transport.
 
 ### Fresh evidence / localization
 
-- narrow strict RFC-number canary completed on live runtime as workflow `run_1788184782007_002a3885`, root execution `exec_1788184782008_6104ac80`;
-- runtime duration ~`769.2s`; internal `total_orchestration_time_seconds=492.25`; research phase ~`390.9s`;
-- evidence state: 10 primary-standard sources, 133 claims, 104 verified, 23 overturned, 6 unverified, 2 independent provenance groups, verified coverage `1.0`;
-- free-form draft remained correctly rejected: 50 material claims, 15 supported, 35 unsupported, dominated by missing/wrong citation binding;
-- delivered evidence-only fallback passed live delivery verification: `delivery_verification.passed=true`, `mode=verified_evidence_only`, no unresolved requirements;
-- this proves delivery-semantics and provider-boundedness behavior, but it is **not full A1 PASS** because the canary query covered only the RFC number and did not exercise RFC 9114 publication dates + Google QUIC lineage required by the A1 contract below;
-- live logs also prove bounded provider retry is loaded (`retry 1/1`) and can recover after rate-limit/fresh-connection-pool resets;
-- CURRENT `/app` HEAD remains `2cb0814deda4a9ab9158a4f9a876728e6977a799`; native `git status --short` remains the expected dirty Lane-A workspace: `doc_generation_pipeline.py`, `main.py`, `tests/test_agent.py`, untracked `reasoners/deep_research_ext/`, untracked `tests/test_deep_research_ext.py`.
+- ADR `docs/adr/ADR-0001-deep-research-evaluation-system.md` is ACCEPTED and defines four planes: anchors, frozen regression, live-web, adversarial/mutation; hard epistemic gates precede soft quality scoring;
+- CURRENT `/app/reasoners/deep_research_ext/evaluation.py` now implements the fixture/requirement/observation contracts, deterministic hard-gate evaluator, and six heterogeneous pilots across standards, science/contradiction, current-state/freshness, history/false-premise, business/partial-evidence abstention, and software/provenance-adversarial;
+- CURRENT `/app/tests/test_evaluation_suite.py` contains three focused regressions: heterogeneous coverage, explicit unresolved acceptance, and fail-closed rejection on wrong state/unsupported claim/citation entailment below 1.0;
+- eval module + test `py_compile` PASS; direct execution of all three regressions PASS; runtime image still lacks pytest, so canonical pytest remains a validation-environment blocker;
+- full exact A1 run `run_1788185825210_86058ba2` failed at the requirement-mapping provider boundary, not a semantic gate: unrestricted mapping batches hit `90s` timeout after retry `1/1` and raised HTTP 500;
+- CURRENT `/app/reasoners/deep_research_ext/requirement_mapping.py` is patched container-first with bounded mapping concurrency `2` and fail-closed batch handling; compile + two direct regressions PASS;
+- real-provider focused proof over 31 claims returned 31/31 mappings in ~50s despite transient 502/retry behavior, without pipeline exception;
+- main server has not loaded that mapper patch: typed reload is blocked by `live_patch_not_allowed`, and a single PID1 SIGKILL attempt was independently proven no-op (same PID/restart_count), so it was not repeated;
+- no redeploy/rebuild/StartApplication/RestartApplication/GitHub-code transport was used.
 
 ### DoD
 
-1. Run the full A1 task covering RFC 9000, RFC 9114, publication dates, and Google QUIC lineage with strict authoritative-source policy and `max_gap_rounds=1`.
-2. RFC 9000 and RFC 9114 identifiers + publication dates must be supported by authoritative primary evidence.
-3. Google QUIC lineage claims must be source-entailed or explicitly unresolved; no model-memory completion.
-4. Delivered report must have zero unsupported material factual claims; full verified evidence-only delivery is acceptable when the writer draft is rejected, provided audit state remains visible.
-5. No fabricated title/date/status/source; citation entailment for every delivered material claim.
-6. Record execution/run ids, latency, evidence counts, coverage, final-verifier result, and delivered mode.
-7. If A1 PASS, immediately promote Durable `ResearchRun` checkpoint/resume as the next 30-minute reliability batch, followed by replay regression fixtures; do not rebuild Evidence Ledger or novelty stopping already present.
+1. ADR-0001 + PLAN reflect the evaluation architecture and implementation order.
+2. Six pilot fixtures cover six distinct domain/capability combinations and are indexable by stable ids.
+3. Hard evaluator deterministically fails on unsupported material claims, fabricated artifacts, citation entailment below 1.0, silent contradiction loss, false-premise adoption, prompt injection success, or mismatched requirement state.
+4. Explicit `unresolved` / `contradicted` states count as correct only when the fixture contract expects them.
+5. Compile + focused deterministic regression PASS on CURRENT `/app`.
+6. Next evaluation expansion is not random prompts: bind immutable evidence corpora/mutations to fixtures, then integrate with durable ResearchRun/replay.
+7. Resume exact A1 on patched source; A1 remains NOT PASS until the full RFC9000/RFC9114/date/lineage contract completes semantically.
 
 ### Stop / replan conditions
 
-- If full A1 FAILS, patch only the exact failing semantic boundary in `/app`, validate, and rerun A1; do not start post-A1 architecture early.
-- If full A1 PASSes only through evidence-only delivery, writer citation-boundary quality remains a separate optimization and final verifier stays fail-closed.
+- Do not expand to 24+ cases before the six-pilot contract is bound to replayable evidence/result capture.
+- Do not use one aggregate quality score to override hard gates.
+- Do not treat the narrow RFC anchor as general benchmark evidence.
+- If A1 fails again, patch only the exact failing boundary in `/app` and add/update the corresponding eval fixture/regression.
 - No redeploy/rebuild/StartApplication/RestartApplication for this inner loop.
 
 ## Semantic acceptance ladder
