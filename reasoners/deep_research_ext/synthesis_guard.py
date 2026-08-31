@@ -67,8 +67,18 @@ def build_evidence_only_gap_response(
         source_notes=source_notes,
         disclaimers=[("This strict-mode report is intentionally incomplete where verified evidence is insufficient." if unresolved else "The free-form synthesis was withheld; this report contains only verified source-entailed evidence." )],
     )
+    delivery_passed = not unresolved and coverage.verified_coverage_ratio >= 1.0
+    extension = metadata.get("verified_research_extension") if isinstance(metadata, dict) else None
+    if isinstance(extension, dict):
+        extension["delivery_verification"] = {
+            "passed": delivery_passed,
+            "mode": "verified_evidence_only" if delivery_passed else "verified_partial",
+            "verified_coverage_ratio": coverage.verified_coverage_ratio,
+            "unresolved_requirement_ids": list(unresolved),
+            "basis": "source_entailed_verified_claims_only",
+        }
     return DocumentResponse(
-        mode="verified_partial",
+        mode=("verified_evidence_only" if delivery_passed else "verified_partial"),
         version="0.1",
         research_package=document.model_dump(),
         metadata=metadata,
