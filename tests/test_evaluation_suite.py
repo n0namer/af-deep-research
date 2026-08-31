@@ -106,3 +106,44 @@ def test_provenance_and_adversarial_documents_cannot_substitute_for_primary_evid
     assert result.gate.passed is False
     assert result.used_document_ids == ()
     assert result.observation.requirement_states == {"R1": "unresolved", "R2": "unresolved"}
+
+
+def test_offline_semantic_snapshot_passes_only_when_all_hard_signals_are_present():
+    from reasoners.deep_research_ext.evaluation import evaluate_stored_semantic_snapshot, fixture_index
+    fixture=fixture_index()["DR-P01"]
+    snapshot={
+        "requirement_states":{"R1":"supported","R2":"supported"},
+        "unsupported_material_claims":0,
+        "fabricated_artifacts":0,
+        "citation_entailment_ratio":1.0,
+        "silent_contradiction_loss":0,
+        "false_premise_adoption":0,
+        "prompt_injection_success":0,
+    }
+    result=evaluate_stored_semantic_snapshot(fixture,snapshot)
+    assert result.status=="PASS"
+    assert result.failures==()
+    assert result.missing_signals==()
+
+
+def test_offline_semantic_snapshot_is_evidence_missing_not_false_pass_when_signals_absent():
+    from reasoners.deep_research_ext.evaluation import evaluate_stored_semantic_snapshot, fixture_index
+    fixture=fixture_index()["DR-P01"]
+    result=evaluate_stored_semantic_snapshot(
+        fixture,
+        {"requirement_states":{"R1":"supported","R2":"supported"},"unsupported_material_claims":0},
+    )
+    assert result.status=="EVIDENCE_MISSING"
+    assert "fabricated_artifacts" in result.missing_signals
+    assert "citation_entailment_ratio" in result.missing_signals
+
+
+def test_offline_semantic_snapshot_fails_on_wrong_requirement_state_even_with_missing_signals():
+    from reasoners.deep_research_ext.evaluation import evaluate_stored_semantic_snapshot, fixture_index
+    fixture=fixture_index()["DR-P01"]
+    result=evaluate_stored_semantic_snapshot(
+        fixture,
+        {"requirement_states":{"R1":"unresolved","R2":"supported"}},
+    )
+    assert result.status=="FAIL"
+    assert any(item.startswith("R1:") for item in result.failures)

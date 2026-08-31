@@ -13,6 +13,29 @@ from .synthesis_guard import build_evidence_only_gap_response, requires_programm
 from .verification_bridge import verify_ledger_claims
 
 
+def _semantic_snapshot(coverage, final_verification=None):
+    requirement_states = {
+        item.requirement_id: ("supported" if item.status == "verified" else "unresolved")
+        for item in coverage.requirements
+    }
+    snapshot = {
+        "requirement_states": requirement_states,
+        "unsupported_material_claims": None,
+        "fabricated_artifacts": None,
+        "citation_entailment_ratio": None,
+        "silent_contradiction_loss": None,
+        "false_premise_adoption": None,
+        "prompt_injection_success": None,
+    }
+    if final_verification is not None:
+        unsupported = len(final_verification.unsupported_claims)
+        total = int(final_verification.material_claim_count or 0)
+        supported = int(final_verification.supported_claim_count or 0)
+        snapshot["unsupported_material_claims"] = unsupported
+        snapshot["citation_entailment_ratio"] = 1.0 if total == 0 else round(supported / total, 6)
+    return snapshot
+
+
 async def execute_verified_pipeline(
     *,
     trace: ExtensionTrace,
@@ -116,7 +139,12 @@ async def execute_verified_pipeline(
             run_store, research_run, stage="completed", status="completed",
             evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
             open_gap_ids=tuple(unresolved_requirement_ids(coverage)),
-            payload={"research_package": package, "research_phase_metadata": research_phase_metadata, "terminal_mode": ext["mode"]},
+            payload={
+                "research_package": package,
+                "research_phase_metadata": research_phase_metadata,
+                "terminal_mode": ext["mode"],
+                "semantic_snapshot": _semantic_snapshot(coverage),
+            },
         )
         base_metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
         return build_evidence_only_gap_response(
@@ -150,6 +178,7 @@ async def execute_verified_pipeline(
     )
     metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
 
+    final_verification = None
     if (upstream_kwargs["source_strictness"] or "").strip().lower() in {"strict", "verified-only", "verified_only"}:
         final_verification = await verify_final_document(
             document_package=document.research_package,
@@ -171,6 +200,8 @@ async def execute_verified_pipeline(
                     "research_phase_metadata": research_phase_metadata,
                     "document_package": getattr(document, "research_package", {}),
                     "terminal_mode": ext["mode"],
+                    "final_verification": final_verification.model_dump(),
+                    "semantic_snapshot": _semantic_snapshot(coverage, final_verification),
                 },
             )
             metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
@@ -190,6 +221,8 @@ async def execute_verified_pipeline(
             "research_phase_metadata": research_phase_metadata,
             "document_package": getattr(document, "research_package", {}),
             "terminal_mode": "verified_document",
+            "final_verification": final_verification.model_dump() if final_verification is not None else None,
+            "semantic_snapshot": _semantic_snapshot(coverage, final_verification),
         },
     )
     metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}

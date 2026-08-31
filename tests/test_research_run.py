@@ -84,8 +84,8 @@ def test_verified_pipeline_reuses_checkpointed_research_package_for_same_run_id(
     async def ident(**kw): return kw['ledger']
     class Cov:
         verified_coverage_ratio=1.0
-        unresolved_requirement_ids=[]
-        def model_dump(self): return {'verified_coverage_ratio':1.0, 'unresolved_requirement_ids':[]}
+        requirements=[]
+        def model_dump(self): return {'requirements':[], 'verified_coverage_ratio':1.0}
     class Stop:
         def model_dump(self): return {'eligible_to_stop':True}
 
