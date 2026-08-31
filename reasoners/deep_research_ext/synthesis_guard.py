@@ -54,6 +54,10 @@ def build_evidence_only_gap_response(
             content = "Insufficient verified evidence for this requirement. The system abstains rather than filling the gap from model memory."
         sections.append(DocumentSection(title=f"{requirement.requirement_id}: {requirement.question}", content=content))
 
+    used_source_ids = {
+        claim.source_id for claim in ledger.claims
+        if claim.status in {"verified", "disputed"} and claim.support_state == "source_entailed"
+    }
     source_notes = [
         SourceNote(
             citation_id=citation_ids[source.source_id],
@@ -62,7 +66,7 @@ def build_evidence_only_gap_response(
             url=source.url,
         )
         for source in ledger.sources
-        if source.source_id in citation_ids
+        if source.source_id in used_source_ids
     ]
 
     verified_count = sum(1 for item in coverage.requirements if item.status == "verified")

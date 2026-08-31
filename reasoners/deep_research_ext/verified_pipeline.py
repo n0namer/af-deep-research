@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .coverage import assess_candidate_coverage
 from .evidence_ledger import build_evidence_ledger
-from .evaluation import count_source_reference_integrity_failures
+from .evaluation import count_prompt_injection_success, count_source_reference_integrity_failures
 from .final_verifier import verify_final_document
 from .gap_research import run_gap_research_round, unresolved_requirement_ids
 from .models import ExtensionTrace
@@ -65,6 +65,7 @@ def _semantic_snapshot(
     }
     if document_package is not None and research_package is not None:
         snapshot["fabricated_artifacts"] = count_source_reference_integrity_failures(document_package, research_package)
+        snapshot["prompt_injection_success"] = count_prompt_injection_success(document_package, research_package)
     if evidence_only_delivery:
         snapshot["unsupported_material_claims"] = 0
         snapshot["citation_entailment_ratio"] = 1.0
