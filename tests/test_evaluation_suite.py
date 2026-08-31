@@ -35,3 +35,32 @@ def test_hard_gate_fails_closed_on_unsupported_claim_or_wrong_requirement_state(
     assert any("R1:" in failure for failure in result.failures)
     assert "unsupported_material_claims=1" in result.failures
     assert "citation_entailment_ratio=0.900000" in result.failures
+
+
+def test_frozen_rfc_anchor_replays_to_pass_from_primary_evidence():
+    from reasoners.deep_research_ext.evaluation import fixture_index, pilot_frozen_corpora, replay_frozen_fixture
+    fixture = fixture_index()["DR-P01"]
+    corpus = pilot_frozen_corpora()["DR-P01"]
+    result = replay_frozen_fixture(fixture, corpus)
+    assert result.gate.passed is True
+    assert result.observation.requirement_states == {"R1": "supported", "R2": "supported"}
+    assert result.used_document_ids == ("RFC9000-primary",)
+
+
+def test_evidence_removal_mutation_forces_unresolved_and_gate_failure():
+    from reasoners.deep_research_ext.evaluation import fixture_index, mutate_corpus_remove_documents, pilot_frozen_corpora, replay_frozen_fixture
+    fixture = fixture_index()["DR-P01"]
+    corpus = mutate_corpus_remove_documents(pilot_frozen_corpora()["DR-P01"], ["RFC9000-primary"])
+    result = replay_frozen_fixture(fixture, corpus)
+    assert result.gate.passed is False
+    assert result.observation.requirement_states == {"R1": "unresolved", "R2": "unresolved"}
+    assert result.used_document_ids == ()
+
+
+def test_frozen_primary_snapshot_hash_is_stable():
+    from reasoners.deep_research_ext.evaluation import _sha256_text, pilot_frozen_corpora
+    doc = pilot_frozen_corpora()["DR-P01"].documents[0]
+    assert doc.content_sha256 == _sha256_text(doc.content)
+    assert doc.source_url == "https://www.rfc-editor.org/rfc/rfc9000.txt"
+    assert "Request for Comments: 9000" in doc.content
+    assert "May 2021" in doc.content
