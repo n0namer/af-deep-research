@@ -1,14 +1,15 @@
 import time
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .coverage import assess_candidate_coverage
 from .evidence_ledger import build_evidence_ledger
+from .final_verifier import verify_final_document
+from .gap_research import run_gap_research_round
 from .models import ExtensionTrace
 from .requirement_mapping import map_claims_to_requirements
 from .stopping import assess_stopping
 from .synthesis_guard import build_evidence_only_gap_response, requires_programmatic_abstention
 from .verification_bridge import verify_ledger_claims
-from .final_verifier import verify_final_document
 
 
 async def execute_verified_pipeline(
@@ -16,6 +17,7 @@ async def execute_verified_pipeline(
     trace: ExtensionTrace,
     prepare_research_package: Callable[..., Awaitable[Any]],
     generate_document_from_package: Callable[..., Awaitable[Any]],
+    stream_executor: Optional[Callable[..., Awaitable[Any]]] = None,
     upstream_kwargs: Dict[str, Any],
     ai_call=None,
 ) -> Any:
@@ -49,14 +51,37 @@ async def execute_verified_pipeline(
         ai_call=ai_call,
     )
     coverage = assess_candidate_coverage(trace.answer_contract, ledger)
-    stopping = assess_stopping(coverage)
+    gap_round_traces = []
+    max_gap_rounds = max(0, int(upstream_kwargs.get("max_gap_rounds", 0) or 0))
+    if stream_executor is not None and max_gap_rounds > 0 and coverage.verified_coverage_ratio < 1.0:
+        for _ in range(max_gap_rounds):
+            package, ledger, gap_trace = await run_gap_research_round(
+                contract=trace.answer_contract,
+                coverage=coverage,
+                ledger=ledger,
+                research_package=package,
+                stream_executor=stream_executor,
+                ai_call=ai_call,
+                source_strictness=upstream_kwargs["source_strictness"],
+                model=upstream_kwargs.get("model"),
+                api_key=upstream_kwargs.get("api_key"),
+            )
+            gap_round_traces.append(gap_trace)
+            coverage = assess_candidate_coverage(trace.answer_contract, ledger)
+            if coverage.verified_coverage_ratio >= 1.0 or gap_trace.novelty_exhausted:
+                break
 
+    stopping = assess_stopping(
+        coverage,
+        novelty_evaluated=bool(gap_round_traces),
+        novelty_exhausted=bool(gap_round_traces and gap_round_traces[-1].novelty_exhausted),
+    )
     ext = trace.model_dump()
     ext["mode"] = "verified_phase_checkpoint"
     ext["evidence_ledger_summary"] = ledger.summary()
     ext["coverage_state"] = coverage.model_dump()
     ext["stopping_assessment"] = stopping.model_dump()
-
+    ext["gap_rounds"] = [item.model_dump() for item in gap_round_traces]
     base_metadata = {
         "total_orchestration_time_seconds": round(time.time() - started, 2),
         "research_phase_metadata": getattr(research, "metadata", {}) or {},

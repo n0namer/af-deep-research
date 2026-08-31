@@ -12,6 +12,7 @@ def install_verified_deep_research(
     execute_deep_research: Callable[..., Awaitable[Any]],
     prepare_research_package: Optional[Callable[..., Awaitable[Any]]] = None,
     generate_document_from_package: Optional[Callable[..., Awaitable[Any]]] = None,
+    stream_executor: Optional[Callable[..., Awaitable[Any]]] = None,
     ai_call=None,
 ) -> Callable[..., Awaitable[Any]]:
     if getattr(app, "_verified_deep_research_installed", False):
@@ -24,6 +25,7 @@ def install_verified_deep_research(
         research_focus: int = 3,
         research_scope: int = 3,
         max_research_loops: int = 3,
+        max_gap_rounds: int = 1,
         num_parallel_streams: int = 2,
         tension_lens: str = "balanced",
         source_strictness: str = "mixed",
@@ -52,6 +54,7 @@ def install_verified_deep_research(
             "research_focus": research_focus,
             "research_scope": research_scope,
             "max_research_loops": max_research_loops,
+            "max_gap_rounds": max_gap_rounds,
             "num_parallel_streams": num_parallel_streams,
             "tension_lens": tension_lens,
             "source_strictness": source_strictness,
@@ -65,6 +68,7 @@ def install_verified_deep_research(
                 trace=trace,
                 prepare_research_package=prepare_research_package,
                 generate_document_from_package=generate_document_from_package,
+                stream_executor=stream_executor,
                 upstream_kwargs=upstream_kwargs,
                 ai_call=ai_call,
             )

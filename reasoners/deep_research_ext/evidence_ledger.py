@@ -85,3 +85,16 @@ def build_evidence_ledger(research_package: dict, requirement_ids: List[str]) ->
                 source_independence_group=source_group.get(article_id),
             ))
     return EvidenceLedger(sources=sources, claims=claims, created_at=retrieved_at)
+
+
+def merge_evidence_ledgers(base: EvidenceLedger, extra: EvidenceLedger) -> EvidenceLedger:
+    sources = {source.source_id: source for source in base.sources}
+    for source in extra.sources:
+        sources[source.source_id] = source
+    claims = {claim.claim_id: claim for claim in base.claims}
+    for claim in extra.claims:
+        claims[claim.claim_id] = claim
+    return base.model_copy(update={
+        "sources": [sources[key] for key in sorted(sources)],
+        "claims": [claims[key] for key in sorted(claims)],
+    })

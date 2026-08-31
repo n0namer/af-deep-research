@@ -438,3 +438,52 @@ def test_verified_pipeline_rejects_strict_writer_draft_when_final_verifier_fails
     monkeypatch.setattr(vp, "map_claims_to_requirements", fake_map)
     monkeypatch.setattr(vp, "verify_ledger_claims", fake_verify)
     monkeypatch.setattr(vp, "verify_final_document", fake_final)
+
+
+def test_gap_query_planner_targets_only_unverified_requirements():
+    from reasoners.deep_research_ext.coverage import CoverageState, RequirementCoverage
+    from reasoners.deep_research_ext.gap_research import GapQuery, GapQueryPlan, plan_gap_queries
+    from reasoners.deep_research_ext.models import ResearchRequirement
+
+    contract = build_answer_contract("multi", source_strictness="strict")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="RFC number"),
+        ResearchRequirement(requirement_id="R2", question="Lineage"),
+    ]})
+    coverage = CoverageState(requirements=[
+        RequirementCoverage(requirement_id="R1", status="verified"),
+        RequirementCoverage(requirement_id="R2", status="no_candidate_evidence"),
+    ], candidate_coverage_ratio=0.5, verified_coverage_ratio=0.5)
+    async def fake_ai(**kwargs):
+        return GapQueryPlan(gaps=[GapQuery(requirement_id="R2", queries=["site:ietf.org QUIC Google history"]), GapQuery(requirement_id="R1", queries=["should be filtered"] )])
+    plan = asyncio.run(plan_gap_queries(contract=contract, coverage=coverage, ai_call=fake_ai))
+    assert [g.requirement_id for g in plan.gaps] == ["R2"]
+    assert plan.gaps[0].queries == ["site:ietf.org QUIC Google history"]
+
+
+def test_gap_round_marks_novelty_exhausted_when_no_new_verified_claims(monkeypatch):
+    from reasoners.deep_research_ext import gap_research as gr
+    from reasoners.deep_research_ext.coverage import CoverageState, RequirementCoverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceLedger
+    from reasoners.deep_research_ext.gap_research import GapQuery, GapQueryPlan
+    from reasoners.deep_research_ext.models import ResearchRequirement
+
+    contract = build_answer_contract("multi", source_strictness="strict")
+    contract = contract.model_copy(update={"requirements": [ResearchRequirement(requirement_id="R1", question="Missing lineage")]})
+    coverage = CoverageState(requirements=[RequirementCoverage(requirement_id="R1", status="no_candidate_evidence")], candidate_coverage_ratio=0.0, verified_coverage_ratio=0.0)
+    base = EvidenceLedger(sources=[], claims=[], created_at="now")
+
+    async def fake_plan(**kwargs): return GapQueryPlan(gaps=[GapQuery(requirement_id="R1", queries=["query"] )])
+    class FakeOutput:
+        source_articles = []
+        article_evidence = []
+    async def fake_executor(*args, **kwargs): return FakeOutput()
+    async def passthrough_map(**kwargs): return kwargs["ledger"]
+    async def passthrough_verify(**kwargs): return kwargs["ledger"]
+    monkeypatch.setattr(gr, "plan_gap_queries", fake_plan)
+    monkeypatch.setattr(gr, "map_claims_to_requirements", passthrough_map)
+    monkeypatch.setattr(gr, "verify_ledger_claims", passthrough_verify)
+    package, ledger, trace = asyncio.run(gr.run_gap_research_round(contract=contract, coverage=coverage, ledger=base, research_package={"source_articles":[],"article_evidence":[]}, stream_executor=fake_executor, ai_call=lambda **kwargs: None, source_strictness="strict"))
+    assert trace.attempted_requirements == ["R1"]
+    assert trace.new_verified_claim_count == 0
+    assert trace.novelty_exhausted is True
