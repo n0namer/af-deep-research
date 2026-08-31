@@ -21,6 +21,7 @@ async def map_claims_to_requirements(
     model: Optional[str] = None,
     api_key: Optional[str] = None,
     batch_size: int = 30,
+    max_concurrent_batches: int = 2,
 ) -> EvidenceLedger:
     """Map candidate claims to requested requirements. This classifies relevance only, never truth."""
     if not ledger.claims or not contract.requirements:
@@ -68,7 +69,18 @@ This is ONLY a relevance-routing task. Do not judge whether the claim is true, v
 
     import asyncio
     batches = [ledger.claims[i:i + batch_size] for i in range(0, len(ledger.claims), batch_size)]
-    results = await asyncio.gather(*(map_batch(batch) for batch in batches))
+    semaphore = asyncio.Semaphore(max(1, max_concurrent_batches))
+
+    async def map_batch_bounded(batch):
+        async with semaphore:
+            try:
+                return await map_batch(batch)
+            except Exception:
+                # Requirement mapping is relevance-only. Failing closed leaves this batch
+                # unmapped so coverage cannot become a false PASS because a provider stalled.
+                return ClaimRequirementMapList()
+
+    results = await asyncio.gather(*(map_batch_bounded(batch) for batch in batches))
     mapped = {}
     for result in results:
         for item in result.mappings:
