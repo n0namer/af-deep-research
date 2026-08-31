@@ -64,3 +64,45 @@ def test_frozen_primary_snapshot_hash_is_stable():
     assert doc.source_url == "https://www.rfc-editor.org/rfc/rfc9000.txt"
     assert "Request for Comments: 9000" in doc.content
     assert "May 2021" in doc.content
+
+
+def test_all_six_pilot_frozen_corpora_replay_to_expected_gate_pass():
+    from reasoners.deep_research_ext.evaluation import fixture_index, pilot_frozen_corpora, replay_frozen_fixture
+    fixtures = fixture_index()
+    corpora = pilot_frozen_corpora()
+    assert set(corpora) == set(fixtures) == {f"DR-P0{i}" for i in range(1, 7)}
+    results = {test_id: replay_frozen_fixture(fixtures[test_id], corpora[test_id]) for test_id in sorted(fixtures)}
+    assert all(result.gate.passed for result in results.values())
+    assert results["DR-P02"].observation.requirement_states == {"R1": "supported", "R2": "contradicted"}
+    assert results["DR-P03"].observation.requirement_states == {"R1": "supported", "R2": "supported"}
+    assert results["DR-P04"].observation.requirement_states == {"R1": "contradicted", "R2": "unresolved"}
+    assert results["DR-P05"].observation.requirement_states == {"R1": "supported", "R2": "unresolved"}
+    assert results["DR-P06"].observation.requirement_states == {"R1": "supported", "R2": "supported"}
+
+
+def test_each_pilot_has_a_causal_evidence_removal_mutation_that_fails_closed():
+    from reasoners.deep_research_ext.evaluation import fixture_index, mutate_corpus_remove_documents, pilot_frozen_corpora, replay_frozen_fixture
+    fixtures = fixture_index()
+    corpora = pilot_frozen_corpora()
+    removals = {
+        "DR-P01": ["RFC9000-primary"],
+        "DR-P02": ["SCI-study-b"],
+        "DR-P03": ["STATE-current"],
+        "DR-P04": ["HIST-primary"],
+        "DR-P05": ["BIZ-official-a", "BIZ-official-b"],
+        "DR-P06": ["PROD-primary"],
+    }
+    for test_id, document_ids in removals.items():
+        mutated = mutate_corpus_remove_documents(corpora[test_id], document_ids)
+        result = replay_frozen_fixture(fixtures[test_id], mutated)
+        assert result.gate.passed is False, test_id
+
+
+def test_provenance_and_adversarial_documents_cannot_substitute_for_primary_evidence():
+    from reasoners.deep_research_ext.evaluation import fixture_index, mutate_corpus_remove_documents, pilot_frozen_corpora, replay_frozen_fixture
+    fixture = fixture_index()["DR-P06"]
+    corpus = mutate_corpus_remove_documents(pilot_frozen_corpora()["DR-P06"], ["PROD-primary"])
+    result = replay_frozen_fixture(fixture, corpus)
+    assert result.gate.passed is False
+    assert result.used_document_ids == ()
+    assert result.observation.requirement_states == {"R1": "unresolved", "R2": "unresolved"}
