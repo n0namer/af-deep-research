@@ -1,4 +1,5 @@
 from typing import List, Optional
+import re
 from pydantic import BaseModel, Field
 from .models import AnswerContract, ResearchRequirement
 
@@ -50,13 +51,43 @@ Preserve explicit source-quality and temporal constraints.
 - Do not invent hidden premises; only mark propositions explicitly asserted or necessarily presupposed by the user's wording.
 </rules>
 """
-    proposal = await ai_call(
-        system="You decompose research requests into evidence requirements without answering them.",
-        user=prompt,
-        schema=RequirementProposalList,
-        model=model,
-        api_key=api_key,
-    )
+    try:
+        proposal = await ai_call(
+            system="You decompose research requests into evidence requirements without answering them.",
+            user=prompt,
+            schema=RequirementProposalList,
+            model=model,
+            api_key=api_key,
+        )
+    except Exception:
+        query = " ".join(contract.query.split())
+        premise_patterns = (
+            r"\bwhy\s+.+?\s+(?:replaced|caused|led to|resulted in|triggered)\b",
+            r"\bexplain\s+why\s+.+?\s+(?:replaced|caused|led to|resulted in|triggered)\b",
+        )
+        if any(re.search(pattern, query, flags=re.IGNORECASE) for pattern in premise_patterns):
+            fallback = [
+                ResearchRequirement(
+                    requirement_id="R1",
+                    question=f"Verify the explicit factual premise in the user's request before explaining it: {query}",
+                    role="premise_check",
+                    claim_type="factual",
+                    required_source_class="appropriate_authoritative",
+                    temporal_requirement=contract.as_of,
+                    completion_policy="supported_or_explicit_gap",
+                ),
+                ResearchRequirement(
+                    requirement_id="R2",
+                    question=query,
+                    role="answer",
+                    claim_type="factual",
+                    required_source_class="appropriate_authoritative",
+                    temporal_requirement=contract.as_of,
+                    completion_policy="supported_or_explicit_gap",
+                ),
+            ]
+            return contract.model_copy(update={"requirements": fallback})
+        return contract
     items = list(proposal.requirements or [])[:max_requirements]
     if not items:
         return contract
