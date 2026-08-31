@@ -7,6 +7,7 @@ from .final_verifier import verify_final_document
 from .gap_research import run_gap_research_round
 from .models import ExtensionTrace
 from .requirement_mapping import map_claims_to_requirements
+from .research_run import begin_research_run, checkpoint_research_run
 from .stopping import assess_stopping
 from .synthesis_guard import build_evidence_only_gap_response, requires_programmatic_abstention
 from .verification_bridge import verify_ledger_claims
@@ -22,18 +23,32 @@ async def execute_verified_pipeline(
     ai_call=None,
 ) -> Any:
     started = time.time()
-    research = await prepare_research_package(
-        query=upstream_kwargs["query"],
-        mode=upstream_kwargs["mode"],
-        research_focus=upstream_kwargs["research_focus"],
-        research_scope=upstream_kwargs["research_scope"],
-        max_research_loops=upstream_kwargs["max_research_loops"],
-        num_parallel_streams=upstream_kwargs["num_parallel_streams"],
-        source_strictness=upstream_kwargs["source_strictness"],
-        model=upstream_kwargs.get("model"),
-        api_key=upstream_kwargs.get("api_key"),
-    )
-    package = dict(research.research_package)
+    run_store, research_run = begin_research_run(upstream_kwargs["query"])
+    cached_package = research_run.payload.get("research_package") if research_run.stage != "started" else None
+    if isinstance(cached_package, dict):
+        package = dict(cached_package)
+        research_phase_metadata = dict(research_run.payload.get("research_phase_metadata") or {})
+        research_phase_metadata["resumed_from_checkpoint"] = True
+        research_phase_metadata["research_run_id"] = research_run.run_id
+    else:
+        research = await prepare_research_package(
+            query=upstream_kwargs["query"],
+            mode=upstream_kwargs["mode"],
+            research_focus=upstream_kwargs["research_focus"],
+            research_scope=upstream_kwargs["research_scope"],
+            max_research_loops=upstream_kwargs["max_research_loops"],
+            num_parallel_streams=upstream_kwargs["num_parallel_streams"],
+            source_strictness=upstream_kwargs["source_strictness"],
+            model=upstream_kwargs.get("model"),
+            api_key=upstream_kwargs.get("api_key"),
+        )
+        package = dict(research.research_package)
+        research_phase_metadata = dict(getattr(research, "metadata", {}) or {})
+        source_ids = tuple(str(item.get("id")) for item in package.get("source_articles", []) if item.get("id") is not None)
+        research_run = checkpoint_research_run(
+            run_store, research_run, stage="research_package_ready", source_ids=source_ids,
+            payload={"research_package": package, "research_phase_metadata": research_phase_metadata},
+        )
     ledger = build_evidence_ledger(package, [])
     ledger = await map_claims_to_requirements(
         ledger=ledger,
@@ -82,9 +97,16 @@ async def execute_verified_pipeline(
     ext["coverage_state"] = coverage.model_dump()
     ext["stopping_assessment"] = stopping.model_dump()
     ext["gap_rounds"] = [item.model_dump() for item in gap_round_traces]
+    research_run = checkpoint_research_run(
+        run_store, research_run, stage="evidence_verified",
+        evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
+        open_gap_ids=tuple(coverage.unresolved_requirement_ids),
+        payload={"research_package": package, "research_phase_metadata": research_phase_metadata},
+    )
     base_metadata = {
         "total_orchestration_time_seconds": round(time.time() - started, 2),
-        "research_phase_metadata": getattr(research, "metadata", {}) or {},
+        "research_phase_metadata": research_phase_metadata,
+        "research_run": {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage},
         "verified_research_extension": ext,
     }
 
