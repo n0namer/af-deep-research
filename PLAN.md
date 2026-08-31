@@ -202,7 +202,7 @@ BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is e
 
 ### Goal
 
-Establish a deterministic heterogeneous evaluation spine now, then resume the exact A1 gate on the patched source. No redeploy/rebuild/GitHub-code transport.
+Prove deterministic replay + durable same-run resume, then return to exact A1 only when provider availability allows a meaningful semantic run. No redeploy/rebuild/GitHub-code transport.
 
 ### Fresh evidence / localization
 
