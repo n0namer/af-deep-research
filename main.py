@@ -35,7 +35,7 @@ from doc_generation_pipeline import (
 
 
 AI_CALL_CONCURRENCY_LIMIT = 20
-STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_STRUCTURED_EXTRACTION_CONCURRENCY", "2"))
+STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_STRUCTURED_EXTRACTION_CONCURRENCY", "1"))
 MAX_ARTICLES_PER_TASK = 10
 NUM_SEARCH_TERMS_PER_TASK = 3
 # A hard safety limit on the number of task execution loops.
@@ -2608,7 +2608,7 @@ async def extract_relationships_comprehensive(
 
         all_relationships = []
         iteration = 1
-        max_iterations = 4
+        max_iterations = int(os.getenv("DR_RELATIONSHIP_MAX_ITERATIONS", "2"))
 
         while iteration <= max_iterations:
             # Create context for this iteration
@@ -2628,7 +2628,7 @@ async def extract_relationships_comprehensive(
 
             prompt = f"""
 <mission>
-Find the TOP {8 + min(4, iteration)} most important relationships in this evidence batch (Iteration {iteration}/4).
+Find the TOP {8 + min(4, iteration)} most important relationships in this evidence batch (Iteration {iteration}/{max_iterations}).
 </mission>
 
 <analysis_context>
