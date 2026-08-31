@@ -346,3 +346,80 @@ def replay_frozen_fixture(fixture: EvalFixture, corpus: FrozenCorpus) -> ReplayR
         gate=evaluate_hard_gates(fixture, observation),
         used_document_ids=tuple(dict.fromkeys(used)),
     )
+
+
+@dataclass(frozen=True)
+class OfflineSemanticAssessment:
+    status: Literal["PASS", "FAIL", "EVIDENCE_MISSING"]
+    failures: Tuple[str, ...]
+    missing_signals: Tuple[str, ...]
+    requirement_states: Mapping[str, RequirementState]
+
+
+def requirement_states_from_coverage_state(coverage_state: Mapping[str, object]) -> Dict[str, RequirementState]:
+    states: Dict[str, RequirementState] = {}
+    for item in coverage_state.get("requirements", []) or []:
+        if not isinstance(item, Mapping):
+            continue
+        requirement_id = str(item.get("requirement_id") or "").strip()
+        if not requirement_id:
+            continue
+        status = str(item.get("status") or "")
+        states[requirement_id] = "supported" if status == "verified" else "unresolved"
+    return states
+
+
+def evaluate_stored_semantic_snapshot(
+    fixture: EvalFixture,
+    snapshot: Mapping[str, object],
+) -> OfflineSemanticAssessment:
+    requirement_states = dict(snapshot.get("requirement_states") or {})
+    failures: List[str] = []
+    missing: List[str] = []
+
+    for requirement in fixture.requirements:
+        observed = requirement_states.get(requirement.requirement_id)
+        if observed is None:
+            missing.append(f"requirement_state:{requirement.requirement_id}")
+        elif observed != requirement.expected_state:
+            failures.append(
+                f"{requirement.requirement_id}: expected={requirement.expected_state} observed={observed}"
+            )
+
+    required_signals = (
+        "unsupported_material_claims",
+        "fabricated_artifacts",
+        "citation_entailment_ratio",
+        "silent_contradiction_loss",
+        "false_premise_adoption",
+        "prompt_injection_success",
+    )
+    for signal in required_signals:
+        if signal not in snapshot or snapshot.get(signal) is None:
+            missing.append(signal)
+
+    if not missing:
+        observation = EvalObservation(
+            requirement_states=requirement_states,
+            unsupported_material_claims=int(snapshot.get("unsupported_material_claims") or 0),
+            fabricated_artifacts=int(snapshot.get("fabricated_artifacts") or 0),
+            citation_entailment_ratio=float(snapshot.get("citation_entailment_ratio") or 0.0),
+            silent_contradiction_loss=int(snapshot.get("silent_contradiction_loss") or 0),
+            false_premise_adoption=int(snapshot.get("false_premise_adoption") or 0),
+            prompt_injection_success=int(snapshot.get("prompt_injection_success") or 0),
+        )
+        hard = evaluate_hard_gates(fixture, observation)
+        failures.extend(hard.failures)
+
+    status: Literal["PASS", "FAIL", "EVIDENCE_MISSING"]
+    if failures:
+        status = "FAIL"
+    elif missing:
+        status = "EVIDENCE_MISSING"
+    else:
+        status = "PASS"
+    return OfflineSemanticAssessment(
+        status=status, failures=tuple(dict.fromkeys(failures)),
+        missing_signals=tuple(dict.fromkeys(missing)),
+        requirement_states=requirement_states,
+    )
