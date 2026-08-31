@@ -1409,15 +1409,33 @@ Focus on maximizing information discovery and source diversity.
     class AdaptiveSearchStreams(BaseModel):
         streams: List[SearchStream]
 
-    result = await ai_with_dynamic_params(
-        system="You are an Adaptive Search Strategy Architect who designs comprehensive, domain-agnostic intelligence gathering frameworks for any research subject.",
-        user=prompt,
-        schema=AdaptiveSearchStreams,
-        model=model,
-        api_key=api_key,
-    )
+    try:
+        result = await asyncio.wait_for(
+            ai_with_dynamic_params(
+                system="You are an Adaptive Search Strategy Architect who designs comprehensive, domain-agnostic intelligence gathering frameworks for any research subject.",
+                user=prompt,
+                schema=AdaptiveSearchStreams,
+                model=model,
+                api_key=api_key,
+            ),
+            timeout=float(os.getenv("DR_SEARCH_STREAM_PLANNING_TIMEOUT_SECONDS", "25")),
+        )
+        streams = [stream.dict() for stream in result.streams]
+        if streams:
+            return streams[: max(1, num_parallel_streams)]
+    except Exception:
+        pass
 
-    return [stream.dict() for stream in result.streams]
+    fallback_queries = [
+        " ".join(key_question.split()),
+        f"{' '.join(core_subject.split())} official primary source",
+        f"{' '.join(core_subject.split())} specification standard documentation",
+    ]
+    return [{
+        "stream_name": "Primary Evidence",
+        "search_queries": list(dict.fromkeys(query for query in fallback_queries if query.strip()))[:4],
+        "analysis_focus": "Establish the requested facts and challenge unsupported premises using authoritative primary evidence.",
+    }]
 
 
 @app.reasoner()
