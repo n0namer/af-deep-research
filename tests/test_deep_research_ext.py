@@ -680,3 +680,48 @@ def test_semantic_snapshot_counts_silent_contradiction_loss_and_marks_requiremen
     assert lost["requirement_states"]["R1"]=="contradicted"
     assert lost["silent_contradiction_loss"]==1
     assert preserved["silent_contradiction_loss"]==0
+
+
+def test_premise_check_metadata_marks_challenged_false_premise():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.synthesis_guard import build_evidence_only_gap_response
+
+    contract=build_answer_contract("Why did X happen?",source_strictness="strict")
+    contract=contract.model_copy(update={"requirements":[
+        ResearchRequirement(requirement_id="R1",question="Verify that X happened",role="premise_check"),
+        ResearchRequirement(requirement_id="R2",question="Explain why X happened"),
+    ]})
+    ledger=EvidenceLedger(
+        created_at="now",
+        sources=[EvidenceSource(source_id=1,title="Primary",url="https://example.org/p",content_hash="x",source_class="primary",provenance_group="p",retrieved_at="now")],
+        claims=[EvidenceClaim(claim_id="C1",text="Primary evidence contradicts that X happened.",source_id=1,requirement_ids=["R1"],status="disputed",support_state="source_entailed",disagreement_score=0.9)],
+    )
+    coverage=assess_candidate_coverage(contract,ledger)
+    metadata={"verified_research_extension":{}}
+    build_evidence_only_gap_response(contract=contract,ledger=ledger,coverage=coverage,metadata=metadata)
+    premise=metadata["verified_research_extension"]["premise_checks"]
+    assert premise["challenged_requirement_ids"]==["R1"]
+
+
+def test_semantic_snapshot_counts_false_premise_adoption_fail_closed():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.verified_pipeline import _semantic_snapshot
+
+    contract=build_answer_contract("Why did X happen?")
+    contract=contract.model_copy(update={"requirements":[
+        ResearchRequirement(requirement_id="R1",question="Verify X",role="premise_check"),
+        ResearchRequirement(requirement_id="R2",question="Explain X"),
+    ]})
+    ledger=EvidenceLedger(created_at="now",sources=[],claims=[
+        EvidenceClaim(claim_id="C1",text="X is contradicted",source_id=1,requirement_ids=["R1"],status="disputed",support_state="source_entailed",disagreement_score=0.9)
+    ])
+    coverage=assess_candidate_coverage(contract,ledger)
+    adopted=_semantic_snapshot(coverage,ledger=ledger,contract=contract,delivered_contradiction_ids=("R1",),delivered_premise_challenge_ids=())
+    challenged=_semantic_snapshot(coverage,ledger=ledger,contract=contract,delivered_contradiction_ids=("R1",),delivered_premise_challenge_ids=("R1",))
+    assert adopted["false_premise_adoption"]==1
+    assert challenged["false_premise_adoption"]==0
+    assert challenged["requirement_states"]["R1"]=="contradicted"

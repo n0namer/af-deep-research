@@ -93,6 +93,13 @@ def build_evidence_only_gap_response(
             "count": len(contradiction_requirements),
             "basis": "source_entailed_disputed_claims",
         }
+        premise_ids = {item.requirement_id for item in contract.requirements if getattr(item, "role", "answer") == "premise_check"}
+        challenged_premise_ids = sorted(premise_ids.intersection(contradiction_requirements))
+        extension["premise_checks"] = {
+            "challenged_requirement_ids": challenged_premise_ids,
+            "count": len(challenged_premise_ids),
+            "basis": "premise_check_with_source_entailed_disputed_evidence",
+        }
         extension["delivery_verification"] = {
             "passed": delivery_passed,
             "mode": "verified_evidence_only" if delivery_passed else "verified_partial",

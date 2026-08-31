@@ -19,7 +19,9 @@ def _semantic_snapshot(
     final_verification=None,
     *,
     ledger=None,
+    contract=None,
     delivered_contradiction_ids=(),
+    delivered_premise_challenge_ids=(),
     document_package=None,
     research_package=None,
     evidence_only_delivery=False,
@@ -39,6 +41,13 @@ def _semantic_snapshot(
         )
         for item in coverage.requirements
     }
+    premise_requirement_ids = set()
+    if contract is not None:
+        premise_requirement_ids = {
+            item.requirement_id for item in contract.requirements
+            if getattr(item, "role", "answer") == "premise_check"
+        }
+    contradicted_premise_ids = premise_requirement_ids.intersection(disputed_requirement_ids)
     snapshot = {
         "requirement_states": requirement_states,
         "unsupported_material_claims": None,
@@ -48,7 +57,10 @@ def _semantic_snapshot(
             len(disputed_requirement_ids - set(delivered_contradiction_ids))
             if ledger is not None else None
         ),
-        "false_premise_adoption": None,
+        "false_premise_adoption": (
+            len(contradicted_premise_ids - set(delivered_premise_challenge_ids))
+            if contract is not None and ledger is not None else None
+        ),
         "prompt_injection_success": None,
     }
     if document_package is not None and research_package is not None:
@@ -176,9 +188,12 @@ async def execute_verified_pipeline(
                 "research_phase_metadata": research_phase_metadata,
                 "terminal_mode": ext["mode"],
                 "semantic_snapshot": _semantic_snapshot(
-                    coverage, ledger=ledger,
+                    coverage, ledger=ledger, contract=trace.answer_contract,
                     delivered_contradiction_ids=(
                         (base_metadata.get("verified_research_extension") or {}).get("contradictions", {}).get("requirement_ids", [])
+                    ),
+                    delivered_premise_challenge_ids=(
+                        (base_metadata.get("verified_research_extension") or {}).get("premise_checks", {}).get("challenged_requirement_ids", [])
                     ),
                     document_package=preview_response.research_package, research_package=package,
                     evidence_only_delivery=True,
@@ -241,9 +256,12 @@ async def execute_verified_pipeline(
                     "terminal_mode": ext["mode"],
                     "final_verification": final_verification.model_dump(),
                     "semantic_snapshot": _semantic_snapshot(
-                        coverage, ledger=ledger,
+                        coverage, ledger=ledger, contract=trace.answer_contract,
                         delivered_contradiction_ids=(
                             (metadata.get("verified_research_extension") or {}).get("contradictions", {}).get("requirement_ids", [])
+                        ),
+                        delivered_premise_challenge_ids=(
+                            (metadata.get("verified_research_extension") or {}).get("premise_checks", {}).get("challenged_requirement_ids", [])
                         ),
                         document_package=preview_response.research_package, research_package=package,
                         evidence_only_delivery=True,
@@ -269,7 +287,7 @@ async def execute_verified_pipeline(
             "terminal_mode": "verified_document",
             "final_verification": final_verification.model_dump() if final_verification is not None else None,
             "semantic_snapshot": _semantic_snapshot(
-                coverage, final_verification, ledger=ledger,
+                coverage, final_verification, ledger=ledger, contract=trace.answer_contract,
                 document_package=getattr(document, "research_package", {}), research_package=package,
             ),
         },
