@@ -260,9 +260,63 @@ Likely primitive if needed: compositional multi-source support and FACT / INFERE
 
 Only after A1-A6 semantic acceptance prepare final Lane A handoff with exact `WORKING_DEV_SHA`.
 
+## Post-A1 implementation roadmap
+
+After A1 passes, promote only one 30-minute capability batch at a time. The order below is the current 80/20 priority; do not build later layers before their gate or failure mode is demonstrated.
+
+### Batch B1 — Evidence Provenance v2 (feeds A2/A4/A5/A6)
+
+Goal: make every accepted claim auditable back to exact evidence and upstream origin while preserving epistemic and temporal state.
+
+Minimal state per claim/evidence edge:
+- `claim_id` and `requirement_id`;
+- exact evidence span / excerpt locator;
+- content identity/hash where practical;
+- source URL/class/authority;
+- upstream provenance cluster / independence identity;
+- `retrieval_date`, `publication_date`, `last_updated`, `event_date`, requested `as_of` where available;
+- relation: `SUPPORTS | CONTRADICTS | SUPERSEDES`;
+- epistemic type: `FACT | INFERENCE | HYPOTHESIS`;
+- negative state where applicable: `CONTRADICTED | NOT_FOUND | SEARCH_EXHAUSTED | NO_AUTHORITATIVE_EVIDENCE | UNKNOWN`.
+
+DoD:
+1. Existing A1 behavior remains green.
+2. Exact supporting evidence can be traced from each material accepted claim to source span and source identity.
+3. Derivative sources sharing one upstream origin do not count as independent corroboration.
+4. Conflicting/superseding evidence is retained rather than silently overwritten.
+5. Temporal metadata needed by A4/A5 survives through synthesis and final verification.
+6. No unsupported new factual content is introduced by the provenance layer.
+
+### Batch B2 — Boundary faithfulness verification
+
+Goal: catch corruption where information/citations move between retrieval/research/orchestrator/writer, instead of relying only on the post-generation firewall.
+
+DoD:
+1. At each material handoff, outputs are locally checked against that stage's inputs/evidence.
+2. Record boundary failure type at minimum: `hallucination`, `uncited_input_reliance`, `uncited_output`, `insufficient_citations`.
+3. Boundary checks fail closed or trigger targeted repair without losing valid evidence.
+4. Final verifier remains an independent last gate, not replaced by intermediate checks.
+5. Evaluation trace can localize which stage introduced each rejected final claim.
+
+Evidence basis: recent multi-agent Deep Research work localizes faithfulness/citation mistakes to agent boundaries and reports that orchestrator behavior can dominate final-report errors; use this as motivation, while local A1-A6 evidence remains the acceptance authority.
+
+### Batch B3 — Reproducible + calibrated evaluation
+
+Goal: distinguish product improvement from web/model/judge variance and keep automated judges auditable.
+
+DoD:
+1. Add a frozen/static evidence corpus for deterministic regression alongside live-web evaluation.
+2. Re-run important semantic tasks multiple times and record material claim/citation/source stability.
+3. Maintain a small human-reviewed golden set for citation entailment / support labels.
+4. Measure judge false-positive/false-negative/pass-rate drift rather than trusting one scalar score.
+5. A judge disagreement or low calibration confidence cannot silently promote unsupported evidence to PASS.
+6. Keep live-web tests for freshness/real-provider robustness; frozen evaluation does not replace them.
+
+Evidence basis: DeepResearch Bench evaluates both report quality and citation accuracy; DR³-Eval uses a static research sandbox for reproducibility; recent citation-verifier benchmarking shows materially different directional bias across LLM judges even when aggregate scores are similar.
+
 ## Failure-driven growth backlog
 
-These are **candidate capability increments**, ordered by expected product value. They are not automatically authorized implementation tasks; promote one into the active 30-minute batch only when a failing semantic gate or benchmark demonstrates the need.
+These are **candidate capability increments**, ordered by expected product value. Items covered by B1-B3 are implementation details of those batches, not separate reasons to start parallel architecture work. Promote one into the active 30-minute batch only when the preceding semantic gate passes and a failing gate/benchmark demonstrates the need.
 
 1. **Answer Contract / requirement coverage** — decompose the user task into explicit research requirements, required source classes, temporal constraints and completion criteria.
 2. **Evidence Ledger** — central durable in-run state for atomic claims, exact source spans, source class, provenance, timestamps, entailment, contradiction and requirement coverage.
