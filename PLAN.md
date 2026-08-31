@@ -196,33 +196,40 @@ Do not bypass this guardrail with opaque shell edits, token extraction, helper c
 
 Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — bound provider stalls, then canary/A1
+## Current 30-minute batch — delivery verification semantics, then A1
 
 BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
 ### Goal
 
-Prove a bounded LLM-call failure policy on the already healthy accepted runtime **without redeploy/rebuild**, then rerun the smallest strict semantic canary and, only if it is healthy, exact A1.
+Separate rejected free-form draft audit state from the semantic acceptance of the report actually delivered to the user. A fully covered evidence-only fallback built exclusively from verified source-entailed claims may PASS delivery verification while the rejected writer draft remains preserved as an audit failure. No redeploy/rebuild/GitHub-code transport.
+
+### Fresh evidence / localization
+
+- the latest strict RFC canary completed server-side in about `756.6s` versus the previous ~`978s` baseline;
+- retrieval/evidence lower gates were strong: verified coverage `1.0`, 68 verified claims, strict primary evidence available;
+- final free-form draft verification still failed: 41 material claims, 7 supported, 34 rejected, dominated by missing/wrong citation mapping at the writer boundary;
+- the system already delivered an evidence-only fallback built from verified source-entailed claims, but old semantics labelled even a fully covered fallback `verified_partial`;
+- CURRENT `/app/reasoners/deep_research_ext/synthesis_guard.py` now contains a container-only delivery-semantics patch: full verified coverage + no unresolved requirements -> `mode=verified_evidence_only` and `delivery_verification.passed=true`; partial coverage remains `verified_partial`;
+- deterministic direct checks PASS for both cases: full coverage -> `verified_evidence_only` / delivery PASS; 0.5 coverage -> `verified_partial` / delivery FAIL;
+- regression `test_full_coverage_evidence_only_report_is_delivery_verified` is present in `/app/tests/test_deep_research_ext.py`; `py_compile` PASS. Current runtime image still lacks `pytest`, so a canonical pytest rerun remains a validation blocker rather than evidence of failure.
 
 ### DoD
 
-1. Preserve current running container/source identity: container `548d35ec...`, `/app/.git/HEAD=2cb0814d...`, accepted verifier/test hashes unchanged.
-2. Load the container-only `main.py` timeout/retry patch through an exact same-container lifecycle path; no `StartApplication`, `RestartApplication`, rebuild or source redeploy.
-3. Prove running-process values: Deep Research LLM call timeout defaults to `45s`, timeout retries default to `1` unless explicitly overridden by env.
-4. Run the minimal strict RFC canary (`max_research_loops=1`, `max_gap_rounds=1`, one stream).
-5. A provider stall/rate-limit must either recover or fail within the bounded policy; it must not silently consume the full batch.
-6. Preserve strict retrieval, evidence-state, abstention and final-verifier semantics.
-7. Record canary total latency and final-verifier evidence against the previous ~978s baseline.
-8. If canary passes lower gates, run exact A1 with `max_gap_rounds=1`.
-9. A1 PASS only if every material claim is entailed by admissible cited evidence or explicitly unresolved.
+1. Preserve the final verifier fail-closed behavior: rejected writer draft remains `post_generation_rejected` and its `final_verification.passed=false` audit evidence is not rewritten.
+2. Fully verified evidence-only delivery (`verified_coverage_ratio=1.0`, no unresolved requirements, source-entailed verified claims only) returns `verified_evidence_only` with `delivery_verification.passed=true`.
+3. Any unresolved requirement / coverage below 1.0 remains `verified_partial` with delivery FAIL.
+4. Compile + deterministic regression behavior PASS on CURRENT `/app`; run canonical pytest when a valid runner becomes available, but do not redeploy merely to obtain pytest.
+5. Prove the patch is loaded through a non-redeploy runtime lifecycle/readback before using live behavior as acceptance evidence.
+6. Run exact A1. PASS only if the **delivered report** has zero unsupported material factual claims and every required item is covered or explicitly unresolved; rejected draft remains visible in audit trace and cannot masquerade as a clean writer PASS.
+7. After A1 PASS, next 80/20 reliability batch is Durable `ResearchRun` checkpoint/resume, followed by replay regression fixtures; do not rebuild already-existing Evidence Ledger or novelty stopping.
 
 ### Stop / replan conditions
 
-- If exact same-container reload remains unavailable, do not redeploy to load this patch. Record `CAPABILITY_GAP` and keep the healthy runtime intact.
-- If provider failure remains the dominant layer after bounded timeout/retry is loaded, add a provider fallback/circuit-breaker primitive only from evidence of an actually configured compatible route; do not invent model/provider names.
-- If canary reaches final verification and latency remains high there, return to verifier profiling rather than provider tuning.
-- If canary/A1 rejects unsupported prose, classify rejected claim types and evidence paths before implementing B1/B2.
-- If A1 passes, promote B1 Evidence Provenance v2 as the next 30-minute batch.
+- If exact same-container load/reload remains unavailable, do not redeploy. Record `CAPABILITY_GAP` and preserve the healthy source/runtime state.
+- If A1 delivery still contains unsupported claims, localize the exact delivery path before adding architecture.
+- If A1 passes only through evidence-only delivery, treat writer citation-boundary quality as a separate optimization, not as permission to weaken final verification.
+- After A1, prioritize Durable ResearchRun/checkpoint/resume over duplicating Evidence Ledger/non-convergence mechanisms already present in CURRENT source.
 
 ## Semantic acceptance ladder
 
