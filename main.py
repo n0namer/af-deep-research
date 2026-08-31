@@ -36,6 +36,7 @@ from doc_generation_pipeline import (
 
 AI_CALL_CONCURRENCY_LIMIT = 20
 STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_STRUCTURED_EXTRACTION_CONCURRENCY", "1"))
+EVIDENCE_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_EVIDENCE_EXTRACTION_CONCURRENCY", "2"))
 MAX_ARTICLES_PER_TASK = 10
 NUM_SEARCH_TERMS_PER_TASK = 3
 # A hard safety limit on the number of task execution loops.
@@ -1552,12 +1553,15 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
             quotes: List[str]
 
         try:
-            ai_output = await ai_with_dynamic_params(
-                system=f"You are a comprehensive Intelligence Analyst specializing in {analysis_focus}. Your goal is maximum information extraction while maintaining accuracy and relevance.",
-                user=prompt,
-                schema=ComprehensiveEvidence,
-                model=model,
-                api_key=api_key,
+            ai_output = await asyncio.wait_for(
+                ai_with_dynamic_params(
+                    system=f"You are a comprehensive Intelligence Analyst specializing in {analysis_focus}. Your goal is maximum information extraction while maintaining accuracy and relevance.",
+                    user=prompt,
+                    schema=ComprehensiveEvidence,
+                    model=model,
+                    api_key=api_key,
+                ),
+                timeout=float(os.getenv("DR_EVIDENCE_EXTRACTION_TIMEOUT_SECONDS", "45")),
             )
             return ArticleEvidence(article_id=article.id, **ai_output.dict())
         except Exception as e:
@@ -1570,7 +1574,7 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
         extract_evidence_comprehensive(article) for article in source_articles
     ]
     article_evidence_results = await run_in_batches(
-        extraction_tasks, AI_CALL_CONCURRENCY_LIMIT
+        extraction_tasks, EVIDENCE_EXTRACTION_CONCURRENCY_LIMIT
     )
     article_evidence: List[ArticleEvidence] = [
         ev for ev in article_evidence_results if ev
