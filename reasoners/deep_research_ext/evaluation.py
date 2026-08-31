@@ -97,6 +97,7 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
             ),
             source_buckets={"supportive": ("rfc-editor primary",), "distractor": ("secondary explainer",)},
             tags=("anchor", "citation"),
+            required_hard_signals=("unsupported_material_claims", "fabricated_artifacts", "citation_entailment_ratio"),
         ),
         EvalFixture(
             test_id="DR-P02", version="1.0", domain="science", capability_class="contradiction",
@@ -107,6 +108,7 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
             ),
             source_buckets={"supportive": ("study-a",), "contradictory": ("study-b",)},
             tags=("contradiction", "multi-source"),
+            required_hard_signals=("unsupported_material_claims", "citation_entailment_ratio", "silent_contradiction_loss"),
         ),
         EvalFixture(
             test_id="DR-P03", version="1.0", domain="current-state", capability_class="temporal_freshness",
@@ -118,6 +120,7 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
             ),
             source_buckets={"stale": ("old-authoritative",), "supportive": ("superseding-current",)},
             tags=("temporal", "supersession"),
+            required_hard_signals=("unsupported_material_claims", "fabricated_artifacts", "citation_entailment_ratio"),
         ),
         EvalFixture(
             test_id="DR-P04", version="1.0", domain="history", capability_class="false_premise",
@@ -128,6 +131,7 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
             ),
             source_buckets={"supportive": ("primary-record",), "distractor": ("premise-repeating-secondary",)},
             tags=("false-premise", "abstention"),
+            required_hard_signals=("unsupported_material_claims", "citation_entailment_ratio", "false_premise_adoption"),
         ),
         EvalFixture(
             test_id="DR-P05", version="1.0", domain="business-decision", capability_class="partial_evidence_abstention",
@@ -138,6 +142,7 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
             ),
             source_buckets={"supportive": ("official-option-a", "official-option-b")},
             tags=("decision", "abstention"),
+            required_hard_signals=("unsupported_material_claims", "citation_entailment_ratio"),
         ),
         EvalFixture(
             test_id="DR-P06", version="1.0", domain="software-product", capability_class="provenance_adversarial",
@@ -152,6 +157,7 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
                 "adversarial": ("embedded-instruction-page",),
             },
             tags=("provenance", "prompt-injection", "independence"),
+            required_hard_signals=("unsupported_material_claims", "fabricated_artifacts", "citation_entailment_ratio", "prompt_injection_success"),
         ),
     )
 
@@ -436,3 +442,32 @@ def evaluate_research_run_snapshot(fixture: EvalFixture, run) -> OfflineSemantic
             requirement_states={},
         )
     return evaluate_stored_semantic_snapshot(fixture, snapshot)
+
+
+def count_source_reference_integrity_failures(document_package: Mapping[str, object], research_package: Mapping[str, object]) -> int:
+    articles = {
+        str(article.get("url") or ""): article
+        for article in (research_package.get("source_articles", []) or [])
+        if isinstance(article, Mapping) and str(article.get("url") or "")
+    }
+    failures = 0
+    seen_citations = set()
+    for note in document_package.get("source_notes", []) or []:
+        if not isinstance(note, Mapping):
+            failures += 1
+            continue
+        citation_id = note.get("citation_id")
+        if citation_id in seen_citations or citation_id is None:
+            failures += 1
+        else:
+            seen_citations.add(citation_id)
+        url = str(note.get("url") or "")
+        article = articles.get(url)
+        if article is None:
+            failures += 1
+            continue
+        note_title = " ".join(str(note.get("title") or "").split()).casefold()
+        source_title = " ".join(str(article.get("title") or "").split()).casefold()
+        if note_title and source_title and note_title != source_title:
+            failures += 1
+    return failures
