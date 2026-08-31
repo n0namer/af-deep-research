@@ -3,6 +3,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .coverage import assess_candidate_coverage
 from .evidence_ledger import build_evidence_ledger
+from .evaluation import count_source_reference_integrity_failures
 from .final_verifier import verify_final_document
 from .gap_research import run_gap_research_round, unresolved_requirement_ids
 from .models import ExtensionTrace
@@ -13,7 +14,14 @@ from .synthesis_guard import build_evidence_only_gap_response, requires_programm
 from .verification_bridge import verify_ledger_claims
 
 
-def _semantic_snapshot(coverage, final_verification=None):
+def _semantic_snapshot(
+    coverage,
+    final_verification=None,
+    *,
+    document_package=None,
+    research_package=None,
+    evidence_only_delivery=False,
+):
     requirement_states = {
         item.requirement_id: ("supported" if item.status == "verified" else "unresolved")
         for item in coverage.requirements
@@ -27,7 +35,12 @@ def _semantic_snapshot(coverage, final_verification=None):
         "false_premise_adoption": None,
         "prompt_injection_success": None,
     }
-    if final_verification is not None:
+    if document_package is not None and research_package is not None:
+        snapshot["fabricated_artifacts"] = count_source_reference_integrity_failures(document_package, research_package)
+    if evidence_only_delivery:
+        snapshot["unsupported_material_claims"] = 0
+        snapshot["citation_entailment_ratio"] = 1.0
+    elif final_verification is not None:
         unsupported = len(final_verification.unsupported_claims)
         total = int(final_verification.material_claim_count or 0)
         supported = int(final_verification.supported_claim_count or 0)
@@ -135,6 +148,9 @@ async def execute_verified_pipeline(
 
     if requires_programmatic_abstention(upstream_kwargs["source_strictness"], coverage):
         ext["mode"] = "programmatic_partial_abstention"
+        preview_response = build_evidence_only_gap_response(
+            contract=trace.answer_contract, ledger=ledger, coverage=coverage, metadata=base_metadata,
+        )
         research_run = checkpoint_research_run(
             run_store, research_run, stage="completed", status="completed",
             evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
@@ -143,15 +159,15 @@ async def execute_verified_pipeline(
                 "research_package": package,
                 "research_phase_metadata": research_phase_metadata,
                 "terminal_mode": ext["mode"],
-                "semantic_snapshot": _semantic_snapshot(coverage),
+                "semantic_snapshot": _semantic_snapshot(
+                    coverage, document_package=preview_response.research_package, research_package=package,
+                    evidence_only_delivery=True,
+                ),
             },
         )
         base_metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
         return build_evidence_only_gap_response(
-            contract=trace.answer_contract,
-            ledger=ledger,
-            coverage=coverage,
-            metadata=base_metadata,
+            contract=trace.answer_contract, ledger=ledger, coverage=coverage, metadata=base_metadata,
         )
 
     document = await generate_document_from_package(
@@ -191,6 +207,9 @@ async def execute_verified_pipeline(
         ext["final_verification"] = final_verification.model_dump()
         if not final_verification.passed:
             ext["mode"] = "post_generation_rejected"
+            preview_response = build_evidence_only_gap_response(
+                contract=trace.answer_contract, ledger=ledger, coverage=coverage, metadata=metadata,
+            )
             research_run = checkpoint_research_run(
                 run_store, research_run, stage="completed", status="completed",
                 evidence_summary=ledger.summary(), coverage_state=coverage.model_dump(),
@@ -201,7 +220,10 @@ async def execute_verified_pipeline(
                     "document_package": getattr(document, "research_package", {}),
                     "terminal_mode": ext["mode"],
                     "final_verification": final_verification.model_dump(),
-                    "semantic_snapshot": _semantic_snapshot(coverage, final_verification),
+                    "semantic_snapshot": _semantic_snapshot(
+                        coverage, document_package=preview_response.research_package, research_package=package,
+                        evidence_only_delivery=True,
+                    ),
                 },
             )
             metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
@@ -222,7 +244,10 @@ async def execute_verified_pipeline(
             "document_package": getattr(document, "research_package", {}),
             "terminal_mode": "verified_document",
             "final_verification": final_verification.model_dump() if final_verification is not None else None,
-            "semantic_snapshot": _semantic_snapshot(coverage, final_verification),
+            "semantic_snapshot": _semantic_snapshot(
+                coverage, final_verification,
+                document_package=getattr(document, "research_package", {}), research_package=package,
+            ),
         },
     )
     metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
