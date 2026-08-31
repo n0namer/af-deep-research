@@ -539,6 +539,17 @@ def test_verified_pipeline_rejects_strict_writer_draft_when_final_verifier_fails
     monkeypatch.setattr(vp, "map_claims_to_requirements", fake_map)
     monkeypatch.setattr(vp, "verify_ledger_claims", fake_verify)
     monkeypatch.setattr(vp, "verify_final_document", fake_final)
+    result = asyncio.run(vp.execute_verified_pipeline(
+        trace=trace, prepare_research_package=fake_prepare, generate_document_from_package=fake_writer,
+        upstream_kwargs={"query":"one","mode":"general","research_focus":1,"research_scope":1,"max_research_loops":1,"max_gap_rounds":0,"num_parallel_streams":1,"tension_lens":"balanced","source_strictness":"strict","evidence_style":"standard","analysis_depth":"ANALYTICAL_BRIEF","model":None,"api_key":None},
+        ai_call=lambda **kwargs: None,
+    ))
+    assert result.mode == "verified_evidence_only"
+    ext = result.metadata["verified_research_extension"]
+    assert ext["mode"] == "post_generation_rejected"
+    assert ext["final_verification"]["passed"] is False
+    assert ext["delivery_verification"]["passed"] is True
+    assert ext["delivery_verification"]["mode"] == "verified_evidence_only"
 
 
 def test_gap_query_planner_targets_only_unverified_requirements():
