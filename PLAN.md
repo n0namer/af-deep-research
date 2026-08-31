@@ -106,80 +106,94 @@ A release handoff is ready only when:
 - runtime/config assumptions are recorded;
 - required container-only changes = NONE.
 
-## CURRENT evidence — 2026-08-30
+## CURRENT evidence — 2026-08-31
 
-Permanent DEV has been recovered around the preserved container-first product source. The previous source-pin startup failure is **no longer a current validation blocker** for Lane A product work.
+Permanent DEV remains the active Lane A workspace and is intentionally ahead of durable Git while semantic acceptance is still in progress.
 
-CURRENT readback:
+Fresh CURRENT readback:
 - `/app` git HEAD: `2cb0814deda4a9ab9158a4f9a876728e6977a799`;
-- preserved live product delta: `main.py`, `doc_generation_pipeline.py`, `tests/test_agent.py`;
-- health: HTTP 200;
-- AgentField runtime: `3.0.0`;
-- registered HTTP reasoner schema for `execute_intelligence_stream_comprehensive` now exposes `source_strictness`;
-- regression suite after recovery: `20/20 PASS`;
-- model: `openai/deepseek-ai/DeepSeek-V4-Flash-0731`;
-- search: Tavily enabled + Firecrawl enabled.
+- native dirty set: `doc_generation_pipeline.py`, `main.py`, `tests/test_agent.py`, untracked `reasoners/deep_research_ext/`, untracked `tests/test_deep_research_ext.py`;
+- `final_verifier.py` SHA-256: `ad47b288c9038b43facbbb6a7b2343411cac54b2fafe43511c33314658cbb132`;
+- `tests/test_deep_research_ext.py` SHA-256: `516e0eb87998b9ee4cc8d526d88b5f1332b5377688ce89c56c289ba1b46ca141`;
+- AgentField runtime previously observed as `3.0.0`; permanent DEV remains the target, production remains out of scope;
+- CURRENT source contains `max_gap_rounds: int = 1` in the verified endpoint/bootstrap path, but loaded permanent-DEV reasoner-schema exposure has not yet been freshly re-proven after the latest source edits;
+- the last repository suite evidence is `42 PASS` from the prior accepted handoff; CURRENT rerun is presently blocked by the DEV execution mediator, so this remains historical evidence rather than a fresh PASS.
 
-Accepted lower-layer quality evidence:
-- query-result starvation was fixed by fair interleaving across generated search queries;
-- strict standards queries add deterministic RFC Editor / IETF companion searches;
-- strict pre-cap source prioritization can retain/select RFC 9000 and RFC 9114 primary sources;
-- exact-source adjudication distinguishes source-entailed facts from unsupported facts;
-- strict evidence adjudication fails closed when no facts are supported;
-- writer prompt already forbids filling evidence gaps from model memory, but full A1 proved prompt-only grounding is not sufficient.
+Accepted application increments now present in CURRENT `/app` beyond the older PLAN state:
+- fair multi-query retrieval and strict standards query augmentation;
+- strict pre-cap primary-source prioritization;
+- strictness propagation through continuation/expansion;
+- exact-source entailment and strict fail-closed adjudication;
+- Answer Contract / requirement decomposition and claim-to-requirement mapping;
+- Evidence Ledger with conservative source/provenance state;
+- candidate-vs-verified coverage and strict programmatic abstention;
+- post-generation atomic final verifier;
+- targeted unresolved-only gap research plus novelty stopping.
 
-Operational note: current runtime recovery uses a DEV-only runtime override that preserves the same `/app` source and avoids Git reconciliation. It is a temporary runtime mechanism, not a product-code change and not a release artifact.
+Fresh runtime evidence independently confirms the latest verified canary rather than relying only on handoff text:
+- query: `Using an authoritative primary source, identify the RFC number that specifies QUIC transport.`;
+- research phase: about `519s`;
+- total verified orchestration: about `978s`;
+- evidence state: 10 sources, 120 claims, 83 verified, 2 overturned, verified coverage `1.0`;
+- final verifier: 36 material claims, 13 supported, 23 unsupported;
+- final mode: `post_generation_rejected` with evidence-only fallback.
 
-## Current open product defects
+Interpretation: the epistemic firewall is working fail-closed at the final gate, but final verification is too slow and free-form synthesis still overproduces unsupported claims. The immediate 80/20 move is latency reduction without weakening verification semantics, then re-run A1.
 
-### P0 — strictness propagation is incomplete across research expansion
+## Current open product defects / blockers
 
-Read-only inspection of CURRENT `/app/main.py` found a deterministic application bug:
+### P0 — final verification is sequential and dominates latency
 
-```text
-initial research stream
-  -> passes source_strictness to execute_intelligence_stream_comprehensive ✅
+CURRENT `/app/reasoners/deep_research_ext/final_verifier.py` performs one awaited exact-source adjudication per material draft claim in a sequential loop. This preserves correctness but creates avoidable wall-clock latency. The next implementation should use bounded concurrency, preserve deterministic claim/result association, and fail closed per claim on adjudication exceptions.
 
-continue_research / expansion stream
-  -> does not expose/pass source_strictness
-  -> child falls back to default "mixed" ❌
-```
+### P0 — A1 semantic acceptance is still not achieved
 
-Therefore a strict research run can silently degrade during expansion even when the first research pass is strict.
+The final verifier correctly rejected unsupported free-form prose, but the system has not yet produced an A1 result in which every material claim is source-entailed or explicitly unresolved. HTTP 200 / execution success / verified requirement coverage alone are not A1 PASS.
 
-### P0 — evidence gaps can still become unsupported prose
+### P0 — DEV typed mutation/validation capability gap
 
-Full A1 also proved a separate upper-layer defect: when admissible evidence is incomplete, the writer can still emit externally verifiable facts from model knowledge despite prompt instructions to abstain. This requires programmatic evidence-sufficiency enforcement if it persists after strict retrieval is fixed.
+CURRENT operator mediation allows observation but blocks generic `pytest`/opaque mutation. The main VPS Terminal typed live-patch plane currently reports `live_patch_not_allowed` for `agentfield-dev-deep-research`, while the DEV-facing callable schema does not expose the typed `PATCH_FILE` / target-check operations its mediation policy expects. Do not bypass this guardrail with opaque shell edits. This is an execution-interface blocker, not an application regression.
 
-### P1 — end-to-end citation faithfulness is not yet proven
+### P1 — loaded runtime schema needs fresh proof after next accepted patch
 
-Lower-layer exact-source entailment is working, but the final report is not yet independently re-verified claim-by-claim after writing. A citation adjacent to a sentence is not sufficient proof that every material claim is entailed.
+Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — strict propagation through initial and expansion paths
+## Current 30-minute batch — bounded-parallel final verification
 
-BMAD route semantics: `bmad-help -> bmad-quick-dev`. If no callable BMAD skill exists in CURRENT tools, apply the same stages/DoD discipline directly and do not pretend the skill ran.
+BMAD route semantics: `bmad-help -> bmad-quick-dev`. The handoff/PLAN defines this route, but no callable BMAD skill is exposed in CURRENT tools; therefore use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
 ### Goal
 
-Make `source_strictness` a preserved research-policy invariant across both the initial and continuation/expansion paths, then re-run the same semantic A1 gate.
+Reduce final-verifier wall-clock latency substantially without changing exact-source entailment semantics, per-claim citation mapping, deterministic output ordering, or fail-closed behavior; then prove loaded runtime identity and re-run a bounded verified canary before exact A1.
 
 ### DoD
 
-1. Add a targeted regression that fails when strict mode is lost in `continue_research` expansion.
-2. Extend the continuation/expansion contract to accept and pass `source_strictness` explicitly.
-3. Apply the same strict query augmentation/policy to expansion queries where applicable.
-4. Targeted regression PASS.
-5. Full repository suite remains green.
-6. Live AgentField canary proves the runtime-loaded reasoner preserves strict policy through the path exercised by the full pipeline.
-7. Rerun the same A1 prompt with the same acceptance criteria.
-8. A1 PASS only if every material externally verifiable claim is supported by cited evidence; otherwise the output must expose the evidence gap instead of filling it.
+1. Add a deterministic regression for bounded concurrent claim adjudication.
+2. Preserve claim-to-citation/source attribution and deterministic result order even when adjudications complete out of order.
+3. Bound concurrent adjudications (initial target: 4-8; default implementation candidate: 6), never unlimited `gather`.
+4. Fail closed per claim on ordinary adjudicator exceptions without letting one claim's failure corrupt another claim's result.
+5. Targeted final-verifier regression PASS.
+6. Full repository suite PASS (fresh; historical `42 PASS` is insufficient for this batch).
+7. Reread exact source/hashes after tests.
+8. Reload/restart the SAME existing permanent DEV container only if code loading requires it; no recreate/redeploy.
+9. Read back permanent-DEV reasoner schema and prove `max_gap_rounds` is loaded.
+10. Run a small verified semantic canary and record total/final-verifier latency delta versus the ~978s baseline.
+11. If lower gates pass, run exact A1 with `max_gap_rounds=1` and existing strict acceptance criteria.
+
+### Planned minimal implementation
+
+- add bounded asynchronous adjudication in `final_verifier.py` (for example an `asyncio.Semaphore` around adjudicator calls);
+- gather per-claim results while preserving input order;
+- keep existing missing-citation / missing-source / non-entailment reasons;
+- add an explicit fail-closed reason for adjudication exception;
+- add one regression with deliberately out-of-order completion and a tracked peak concurrency <= configured bound.
 
 ### Stop / replan conditions
 
-- If strict propagation is correct but required primary evidence is still absent, return to retrieval coverage/query policy rather than touching the writer.
-- If required evidence is present but the writer still adds unsupported facts, implement the smallest programmatic `Answer Contract / coverage / abstention` gate before further prompt tuning.
-- If the draft is evidence-bound but citation mapping still fails, add post-generation atomic claim/citation verification.
-- Do not implement later architecture primitives merely because they are in the target architecture; require a demonstrated failing layer or acceptance-gate need.
+- If targeted/full tests cannot be executed because the typed DEV validator route remains unavailable, stop mutation and report `CAPABILITY_GAP`; do not bypass mediation.
+- If bounded concurrency changes semantic outcomes or claim/source attribution, revert that batch and redesign before runtime reload.
+- If latency improves but A1 still rejects unsupported prose, diagnose the unsupported claim classes and evidence mapping before adding more architecture.
+- If A1 passes, move to A2 contradiction handling; do not eagerly implement later backlog items.
 
 ## Semantic acceptance ladder
 
