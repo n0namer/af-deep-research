@@ -18,12 +18,25 @@ def _semantic_snapshot(
     coverage,
     final_verification=None,
     *,
+    ledger=None,
+    delivered_contradiction_ids=(),
     document_package=None,
     research_package=None,
     evidence_only_delivery=False,
 ):
+    disputed_requirement_ids = set()
+    if ledger is not None:
+        disputed_requirement_ids = {
+            requirement_id
+            for claim in ledger.claims
+            if claim.status == "disputed" and claim.support_state == "source_entailed"
+            for requirement_id in claim.requirement_ids
+        }
     requirement_states = {
-        item.requirement_id: ("supported" if item.status == "verified" else "unresolved")
+        item.requirement_id: (
+            "contradicted" if item.requirement_id in disputed_requirement_ids
+            else ("supported" if item.status == "verified" else "unresolved")
+        )
         for item in coverage.requirements
     }
     snapshot = {
@@ -31,7 +44,10 @@ def _semantic_snapshot(
         "unsupported_material_claims": None,
         "fabricated_artifacts": None,
         "citation_entailment_ratio": None,
-        "silent_contradiction_loss": None,
+        "silent_contradiction_loss": (
+            len(disputed_requirement_ids - set(delivered_contradiction_ids))
+            if ledger is not None else None
+        ),
         "false_premise_adoption": None,
         "prompt_injection_success": None,
     }
@@ -160,7 +176,11 @@ async def execute_verified_pipeline(
                 "research_phase_metadata": research_phase_metadata,
                 "terminal_mode": ext["mode"],
                 "semantic_snapshot": _semantic_snapshot(
-                    coverage, document_package=preview_response.research_package, research_package=package,
+                    coverage, ledger=ledger,
+                    delivered_contradiction_ids=(
+                        (base_metadata.get("verified_research_extension") or {}).get("contradictions", {}).get("requirement_ids", [])
+                    ),
+                    document_package=preview_response.research_package, research_package=package,
                     evidence_only_delivery=True,
                 ),
             },
@@ -221,7 +241,11 @@ async def execute_verified_pipeline(
                     "terminal_mode": ext["mode"],
                     "final_verification": final_verification.model_dump(),
                     "semantic_snapshot": _semantic_snapshot(
-                        coverage, document_package=preview_response.research_package, research_package=package,
+                        coverage, ledger=ledger,
+                        delivered_contradiction_ids=(
+                            (metadata.get("verified_research_extension") or {}).get("contradictions", {}).get("requirement_ids", [])
+                        ),
+                        document_package=preview_response.research_package, research_package=package,
                         evidence_only_delivery=True,
                     ),
                 },
@@ -245,7 +269,7 @@ async def execute_verified_pipeline(
             "terminal_mode": "verified_document",
             "final_verification": final_verification.model_dump() if final_verification is not None else None,
             "semantic_snapshot": _semantic_snapshot(
-                coverage, final_verification,
+                coverage, final_verification, ledger=ledger,
                 document_package=getattr(document, "research_package", {}), research_package=package,
             ),
         },

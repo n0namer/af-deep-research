@@ -637,3 +637,46 @@ def test_gap_round_marks_novelty_exhausted_when_no_new_verified_claims(monkeypat
     assert trace.attempted_requirements == ["R1"]
     assert trace.new_verified_claim_count == 0
     assert trace.novelty_exhausted is True
+
+
+def test_evidence_only_report_surfaces_disputed_source_entailed_claims_structurally():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.synthesis_guard import build_evidence_only_gap_response
+
+    contract = build_answer_contract("contradiction", source_strictness="strict")
+    contract = contract.model_copy(update={"requirements": [
+        ResearchRequirement(requirement_id="R1", question="Assess disputed result"),
+    ]})
+    ledger = EvidenceLedger(
+        created_at="now",
+        sources=[EvidenceSource(source_id=1,title="Study",url="https://example.org/study",content_hash="x",source_class="primary",provenance_group="study",retrieved_at="now")],
+        claims=[EvidenceClaim(claim_id="C1",text="The result is disputed by comparable evidence.",source_id=1,requirement_ids=["R1"],status="disputed",support_state="source_entailed",disagreement_score=0.9)],
+    )
+    coverage = assess_candidate_coverage(contract, ledger)
+    metadata={"verified_research_extension":{}}
+    response=build_evidence_only_gap_response(contract=contract,ledger=ledger,coverage=coverage,metadata=metadata)
+    content=response.research_package["sections"][0]["content"]
+    assert "Contradictory evidence detected" in content
+    assert "DISPUTED:" in content
+    assert metadata["verified_research_extension"]["contradictions"]["requirement_ids"]==["R1"]
+
+
+def test_semantic_snapshot_counts_silent_contradiction_loss_and_marks_requirement_contradicted():
+    from reasoners.deep_research_ext.coverage import assess_candidate_coverage
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger
+    from reasoners.deep_research_ext.models import ResearchRequirement
+    from reasoners.deep_research_ext.verified_pipeline import _semantic_snapshot
+
+    contract=build_answer_contract("contradiction")
+    contract=contract.model_copy(update={"requirements":[ResearchRequirement(requirement_id="R1",question="Assess") ]})
+    ledger=EvidenceLedger(created_at="now",sources=[],claims=[
+        EvidenceClaim(claim_id="C1",text="disputed",source_id=1,requirement_ids=["R1"],status="disputed",support_state="source_entailed",disagreement_score=0.8)
+    ])
+    coverage=assess_candidate_coverage(contract,ledger)
+    lost=_semantic_snapshot(coverage,ledger=ledger,delivered_contradiction_ids=())
+    preserved=_semantic_snapshot(coverage,ledger=ledger,delivered_contradiction_ids=("R1",))
+    assert lost["requirement_states"]["R1"]=="contradicted"
+    assert lost["silent_contradiction_loss"]==1
+    assert preserved["silent_contradiction_loss"]==0
