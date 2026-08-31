@@ -202,7 +202,7 @@ BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is e
 
 ### Goal
 
-Prove deterministic replay + durable same-run resume, then return to exact A1 only when provider availability allows a meaningful semantic run. No redeploy/rebuild/GitHub-code transport.
+Make completed `ResearchRun` artifacts independently scoreable offline without retrieval/LLM, fail closed when required semantic evidence was not captured, then instrument the next missing hard signals before returning to exact A1. No redeploy/rebuild/GitHub-code transport.
 
 ### Fresh evidence / localization
 
