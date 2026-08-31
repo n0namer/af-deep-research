@@ -74,6 +74,10 @@ app = Agent(
     ai_config=ai_config,
 )
 
+# Keep DEV research iterations bounded when a provider stalls or rate-limits.
+app.async_config.llm_call_timeout = float(os.getenv("DR_LLM_CALL_TIMEOUT_SECONDS", "45"))
+os.environ.setdefault("AGENTFIELD_AI_TIMEOUT_RETRIES", os.getenv("DR_LLM_TIMEOUT_RETRIES", "1"))
+
 
 # ==============================================================================
 # CORE UTILITIES & HELPERS
