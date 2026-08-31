@@ -92,16 +92,28 @@ def begin_research_run(query: str, *, store: Optional[ResearchRunStore] = None) 
         if existing.query != query:
             raise ValueError("run_id already exists for a different query")
         return store, existing
+    replay_source = store.load(replay_source_run_id) if replay_source_run_id else None
+    if replay_source is not None and replay_source.query != query:
+        raise ValueError("replay source run belongs to a different query")
     now = time.time()
+    inherited_payload = dict(replay_source.payload) if replay_source is not None else {}
+    has_research_package = isinstance(inherited_payload.get("research_package"), dict)
     run = ResearchRun(
         run_id=run_id,
         query=query,
-        stage="started",
+        stage="research_package_ready" if has_research_package else "started",
         checkpoint_seq=0,
         status="running",
         created_at=now,
         updated_at=now,
         replay_source_run_id=replay_source_run_id,
+        source_ids=tuple(replay_source.source_ids) if replay_source is not None else (),
+        evidence_summary=dict(replay_source.evidence_summary) if replay_source is not None else {},
+        coverage_state=dict(replay_source.coverage_state) if replay_source is not None else {},
+        open_gap_ids=tuple(replay_source.open_gap_ids) if replay_source is not None else (),
+        conflicts=tuple(replay_source.conflicts) if replay_source is not None else (),
+        budgets=dict(replay_source.budgets) if replay_source is not None else {},
+        payload=inherited_payload,
     )
     store.save(run)
     return store, run

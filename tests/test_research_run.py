@@ -111,3 +111,35 @@ def test_verified_pipeline_reuses_checkpointed_research_package_for_same_run_id(
         vp.map_claims_to_requirements, vp.verify_ledger_claims, vp.assess_candidate_coverage, vp.assess_stopping = old_map, old_verify, old_cov, old_stop
         if old_root is None: os.environ.pop('DR_RESEARCH_RUN_DIR', None)
         else: os.environ['DR_RESEARCH_RUN_DIR']=old_root
+
+
+def test_agentfield_replay_source_run_reuses_saved_research_package():
+    import shutil
+    from types import SimpleNamespace
+    from agentfield.execution_context import set_execution_context, reset_execution_context
+    root=Path('/tmp/deep-research-replay-source')
+    shutil.rmtree(root, ignore_errors=True)
+    store=ResearchRunStore(str(root))
+
+    source_token=set_execution_context(SimpleNamespace(run_id='run_source_fixture', replay_source_run_id=None))
+    try:
+        _, source=begin_research_run('query-replay', store=store)
+        source=checkpoint_research_run(
+            store, source, stage='research_package_ready',
+            source_ids=('S1',), payload={'research_package': {'source_articles':[{'id':1}]}, 'research_phase_metadata': {'origin':'source'}},
+        )
+    finally:
+        reset_execution_context(source_token)
+
+    replay_token=set_execution_context(SimpleNamespace(run_id='run_replay_fixture', replay_source_run_id='run_source_fixture'))
+    try:
+        _, replay=begin_research_run('query-replay', store=store)
+    finally:
+        reset_execution_context(replay_token)
+
+    assert replay.run_id=='run_replay_fixture'
+    assert replay.replay_source_run_id=='run_source_fixture'
+    assert replay.stage=='research_package_ready'
+    assert replay.source_ids==('S1',)
+    assert replay.payload['research_package']['source_articles'][0]['id']==1
+    assert next_resume_stage(replay)=='evidence_verification'
