@@ -178,41 +178,38 @@ Do not bypass this guardrail with opaque shell edits, token extraction, helper c
 
 Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — bounded-parallel final verification
+## Current 30-minute batch — restore accepted runtime, then canary/A1
 
-BMAD route semantics: `bmad-help -> bmad-quick-dev`. The handoff/PLAN defines this route, but no callable BMAD skill is exposed in CURRENT tools; therefore use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
+BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
 ### Goal
 
-Reduce final-verifier wall-clock latency substantially without changing exact-source entailment semantics, per-claim citation mapping, deterministic output ordering, or fail-closed behavior; then prove loaded runtime identity and re-run a bounded verified canary before exact A1.
+Restore the permanent DEV runtime on the already validated `/app` source **without GitHub source editing, source reconciliation, rebuild or redeploy**, prove the new code is actually loaded, then spend the remainder of the batch on the smallest semantic canary and exact A1.
 
 ### DoD
 
-1. Add a deterministic regression for bounded concurrent claim adjudication.
-2. Preserve claim-to-citation/source attribution and deterministic result order even when adjudications complete out of order.
-3. Bound concurrent adjudications (initial target: 4-8; default implementation candidate: 6), never unlimited `gather`.
-4. Fail closed per claim on ordinary adjudicator exceptions without letting one claim's failure corrupt another claim's result.
-5. Targeted final-verifier regression PASS.
-6. Full repository suite PASS (fresh; historical `42 PASS` is insufficient for this batch).
-7. Reread exact source/hashes after tests.
-8. Reload/restart the SAME existing permanent DEV container only if code loading requires it; no recreate/redeploy.
-9. Read back permanent-DEV reasoner schema and prove `max_gap_rounds` is loaded.
-10. Run a small verified semantic canary and record total/final-verifier latency delta versus the ~978s baseline.
-11. If lower gates pass, run exact A1 with `max_gap_rounds=1` and existing strict acceptance criteria.
+1. Recover only the required AgentField DEV runtime containers from existing images/volumes; do not invoke GitHub clone/build as the recovery mechanism.
+2. Prove the running `deep-research` container mounts `edshqtkwskg3lrczekhcmd71_us-af-e2e-deep-source` at `/app`.
+3. Reread `/app` HEAD/status and accepted hashes; they must match the validated source batch (`final_verifier.py` `0bd825...`, verifier tests `f29e2f...`).
+4. Prove runtime health and AgentField registration on the restored process.
+5. Read back `execute_verified_deep_research` schema and prove `max_gap_rounds` is loaded.
+6. Run a small verified semantic canary and record total/final-verifier wall-clock latency against the previous ~978s total baseline.
+7. If the canary preserves fail-closed semantics and shows useful latency improvement, run exact A1 with `max_gap_rounds=1`.
+8. A1 PASS only if every material claim is entailed by admissible cited evidence or explicitly unresolved; HTTP/execution success alone remains insufficient.
 
-### Planned minimal implementation
+### Recovery strategy
 
-- add bounded asynchronous adjudication in `final_verifier.py` (for example an `asyncio.Semaphore` around adjudicator calls);
-- gather per-claim results while preserving input order;
-- keep existing missing-citation / missing-source / non-entailment reasons;
-- add an explicit fail-closed reason for adjudication exception;
-- add one regression with deliberately out-of-order completion and a tracked peak concurrency <= configured bound.
+- Prefer exact lifecycle action on already-created containers / preserved volumes.
+- Do not trigger another full compose/source deployment while the `control-plane-build` GitHub-auth defect is unresolved.
+- Do not bypass operator mediation through hidden shell sessions, credential/token extraction or production mutation.
+- Once a healthy Deep Research runtime is restored, immediately return to product semantic validation; do not turn runtime recovery into a separate infrastructure project.
 
 ### Stop / replan conditions
 
-- If targeted/full tests cannot be executed because the typed DEV validator route remains unavailable, stop mutation and report `CAPABILITY_GAP`; do not bypass mediation.
-- If bounded concurrency changes semantic outcomes or claim/source attribution, revert that batch and redesign before runtime reload.
-- If latency improves but A1 still rejects unsupported prose, diagnose the unsupported claim classes and evidence mapping before adding more architecture.
+- If no callable exact container-start/reload operation is available, report `CAPABILITY_GAP` with the existing created container IDs and preserved volume evidence; do not rebuild from GitHub merely to escape the gap.
+- If the restored runtime does not contain the accepted hashes, stop before canary and diagnose source-volume identity drift.
+- If loaded schema lacks `max_gap_rounds`, stop before A1 and diagnose process/source loading.
+- If canary latency improves but unsupported prose still triggers final rejection, classify those unsupported claim types before adding architecture.
 - If A1 passes, move to A2 contradiction handling; do not eagerly implement later backlog items.
 
 ## Semantic acceptance ladder
