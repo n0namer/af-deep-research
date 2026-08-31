@@ -54,3 +54,60 @@ def test_research_run_rejects_unsafe_run_id():
         pass
     else:
         raise AssertionError('unsafe run id accepted')
+
+
+def test_verified_pipeline_reuses_checkpointed_research_package_for_same_run_id():
+    import asyncio, os, shutil
+    from types import SimpleNamespace
+    import reasoners.deep_research_ext.verified_pipeline as vp
+    from reasoners.deep_research_ext.task_contract import build_answer_contract
+    from agentfield.execution_context import set_execution_context, reset_execution_context
+
+    root='/tmp/dr-resume-regression'
+    shutil.rmtree(root, ignore_errors=True)
+    old_root=os.environ.get('DR_RESEARCH_RUN_DIR')
+    os.environ['DR_RESEARCH_RUN_DIR']=root
+    calls={'prepare':0}
+
+    async def prep(**kw):
+        calls['prepare'] += 1
+        return SimpleNamespace(research_package={'source_articles':[], 'article_evidence':[]}, metadata={'phase':'fresh'})
+
+    class Doc:
+        def __init__(self, metadata=None):
+            self.research_package={'title':'ok'}
+            self.metadata=metadata or {}
+        def model_copy(self, update):
+            return Doc(metadata=update['metadata'])
+
+    async def gen(**kw): return Doc()
+    async def ident(**kw): return kw['ledger']
+    class Cov:
+        verified_coverage_ratio=1.0
+        unresolved_requirement_ids=[]
+        def model_dump(self): return {'verified_coverage_ratio':1.0, 'unresolved_requirement_ids':[]}
+    class Stop:
+        def model_dump(self): return {'eligible_to_stop':True}
+
+    old_map, old_verify, old_cov, old_stop = vp.map_claims_to_requirements, vp.verify_ledger_claims, vp.assess_candidate_coverage, vp.assess_stopping
+    vp.map_claims_to_requirements=ident
+    vp.verify_ledger_claims=ident
+    vp.assess_candidate_coverage=lambda *a, **k: Cov()
+    vp.assess_stopping=lambda *a, **k: Stop()
+    trace=SimpleNamespace(answer_contract=build_answer_contract('resume test'), model_dump=lambda: {})
+    kwargs={'query':'resume test','mode':'general','research_focus':1,'research_scope':1,'max_research_loops':1,'max_gap_rounds':0,'num_parallel_streams':1,'tension_lens':'balanced','source_strictness':'mixed','evidence_style':'standard','analysis_depth':'ANALYTICAL_BRIEF','model':None,'api_key':None}
+    token=set_execution_context(SimpleNamespace(run_id='run_resume_regression', replay_source_run_id=None))
+    try:
+        async def run_twice():
+            first=await vp.execute_verified_pipeline(trace=trace, prepare_research_package=prep, generate_document_from_package=gen, upstream_kwargs=kwargs)
+            second=await vp.execute_verified_pipeline(trace=trace, prepare_research_package=prep, generate_document_from_package=gen, upstream_kwargs=kwargs)
+            assert first.metadata['research_run']['run_id']=='run_resume_regression'
+            assert second.metadata['research_phase_metadata']['resumed_from_checkpoint'] is True
+        asyncio.run(run_twice())
+        assert calls['prepare']==1
+        assert Path(root, 'run_resume_regression.json').exists()
+    finally:
+        reset_execution_context(token)
+        vp.map_claims_to_requirements, vp.verify_ledger_claims, vp.assess_candidate_coverage, vp.assess_stopping = old_map, old_verify, old_cov, old_stop
+        if old_root is None: os.environ.pop('DR_RESEARCH_RUN_DIR', None)
+        else: os.environ['DR_RESEARCH_RUN_DIR']=old_root
