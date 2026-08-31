@@ -351,13 +351,18 @@ CURRENT implemented MVP:
 - hard gates cover requirement-state correctness, unsupported material claims, fabricated artifacts, citation entailment, contradiction loss, false-premise adoption and prompt-injection success;
 - six pilots span standards, science/contradiction, current-state/freshness, history/false-premise, business/partial-evidence abstention and software/provenance-adversarial.
 
-Next DoD after durable ResearchRun/replay exists:
-1. Bind immutable evidence corpora to the six pilots, including supportive/distractor/stale/derivative/contradictory/adversarial roles.
-2. Add evidence mutations proving answers change when admissible support is removed or superseded.
-3. Expand frozen core to at least 24 cases across domain × failure-mode axes.
-4. Add paired live-web cases for freshness/provider robustness without mixing their scores with frozen regression.
-5. Add unseen holdout cases and 3x/5x repeated-run stability for capability/release gates.
-6. Maintain a small human-reviewed golden set for citation entailment/support calibration; LLM-as-judge remains soft-metric only and cannot override hard gates.
+CURRENT evaluation milestones:
+1. DONE — six pilot corpora are replayable with supportive/distractor/stale/derivative/contradictory/adversarial roles.
+2. DONE — causal evidence-removal mutations fail closed.
+3. DONE — frozen development core expanded to 24 cases across domain × failure-mode axes.
+4. DONE — separate six-case holdout lane exists outside development core.
+5. DONE — repeated-run aggregator measures pass rate, requirement-state/source-set stability, and latency p50/p95.
+
+Next evaluation DoD:
+1. Instrument missing semantic hard signals in actual `ResearchRun` snapshots: contradiction-loss, false-premise adoption, prompt-injection success; do not infer zeros from absence.
+2. Add paired live-web cases for freshness/provider robustness only after provider availability is healthy enough for meaningful runs; keep live scores separate from frozen regression.
+3. Run capability gates 3x and release-critical gates 5x when live execution cost/availability permits, using the repeated-run aggregator.
+4. Maintain a small human-reviewed golden set for citation entailment/support calibration; LLM-as-judge remains soft-metric only and cannot override hard gates.
 
 Decision authority: `docs/adr/ADR-0001-deep-research-evaluation-system.md`.
 
