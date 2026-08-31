@@ -152,7 +152,11 @@ The final verifier correctly rejected unsupported free-form prose, but the syste
 
 ### P0 — DEV typed mutation/validation capability gap
 
-CURRENT operator mediation allows observation but blocks generic `pytest`/opaque mutation. The main VPS Terminal typed live-patch plane currently reports `live_patch_not_allowed` for `agentfield-dev-deep-research`, while the DEV-facing callable schema does not expose the typed `PATCH_FILE` / target-check operations its mediation policy expects. Do not bypass this guardrail with opaque shell edits. This is an execution-interface blocker, not an application regression.
+CURRENT operator mediation allows observation but blocks generic `pytest`/opaque mutation. Fresh operator-registry readback localizes the gap precisely: `agentfield-dev-deep-research` already has `write_policy: auto`, `live_patch_roots: ["/app"]` and `checks.pytest_q: true`, but its `capabilities` list contains only `terminal`, `sessions`, `logs`, `process`, `network`, `stats`; it omits `live_patch` and `reload`. The live-ACI implementation requires `live_patch` plus a configured root, so the main typed plane correctly returns `live_patch_not_allowed` despite the existing `/app` root and validator.
+
+A fresh guidance request for the exact DEV registry operation returned `ALLOW`, but `execContainer` still rejected the exact file mutation as `opaque_or_unknown_mutation`; the DEV callable schema exposes no executable typed target-registry patch route. `prepareChange` also reports `approval_capability_gap` and asks for an exact typed capability. Therefore the blocker is an **executor-binding / target-capability registry defect**, not lack of user authorization and not a Deep Research application regression.
+
+Do not bypass this guardrail with opaque shell edits, helper containers, GitHub application-code edits/redeploy, Coolify lifecycle, production or Lane B mutation. The minimal unblock is to expose/use the existing typed registry/file mutation route and add `live_patch` + `reload` to this DEV target, then immediately return to the bounded-parallel final-verifier batch.
 
 ### P1 — loaded runtime schema needs fresh proof after next accepted patch
 
