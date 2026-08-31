@@ -245,3 +245,34 @@ def test_all_24_frozen_core_cases_fail_after_removing_decisive_admissible_eviden
         if result.gate.passed:
             false_passes.append(test_id)
     assert false_passes==[]
+
+
+def test_repeated_run_aggregation_measures_pass_state_source_and_latency_stability():
+    from reasoners.deep_research_ext.evaluation import EvaluationRunRecord, aggregate_repeated_runs
+    records=[
+        EvaluationRunRecord('DR-P01','r1','PASS',(('R1','supported'),('R2','supported')),('S1','S2'),10.0),
+        EvaluationRunRecord('DR-P01','r2','PASS',(('R1','supported'),('R2','supported')),('S1','S2'),12.0),
+        EvaluationRunRecord('DR-P01','r3','FAIL',(('R1','supported'),('R2','unresolved')),('S1',),20.0),
+    ]
+    summary=aggregate_repeated_runs(records)
+    assert summary.repetitions==3
+    assert summary.pass_count==2
+    assert summary.pass_rate==0.6667
+    assert summary.requirement_state_stability==0.6667
+    assert summary.source_set_stability==0.6667
+    assert summary.latency_p50_seconds==12.0
+    assert summary.latency_p95_seconds==19.2
+
+
+def test_repeated_run_aggregation_rejects_mixed_fixture_records():
+    from reasoners.deep_research_ext.evaluation import EvaluationRunRecord, aggregate_repeated_runs
+    records=[
+        EvaluationRunRecord('DR-P01','r1','PASS',(),(),1.0),
+        EvaluationRunRecord('DR-P02','r2','PASS',(),(),1.0),
+    ]
+    try:
+        aggregate_repeated_runs(records)
+    except ValueError as exc:
+        assert 'one fixture' in str(exc)
+    else:
+        raise AssertionError('mixed fixture records accepted')

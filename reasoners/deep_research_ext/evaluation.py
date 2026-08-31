@@ -563,3 +563,82 @@ def frozen_core_corpora() -> Dict[str, FrozenCorpus]:
 def remove_all_admissible_evidence(corpus: FrozenCorpus) -> FrozenCorpus:
     ids = [doc.document_id for doc in corpus.documents if doc.admissible]
     return mutate_corpus_remove_documents(corpus, ids)
+
+
+@dataclass(frozen=True)
+class EvaluationRunRecord:
+    fixture_id: str
+    run_id: str
+    status: Literal["PASS", "FAIL", "EVIDENCE_MISSING"]
+    requirement_state_signature: Tuple[Tuple[str, RequirementState], ...]
+    source_ids: Tuple[str, ...]
+    latency_seconds: Optional[float] = None
+
+
+@dataclass(frozen=True)
+class RepeatedRunSummary:
+    fixture_id: str
+    repetitions: int
+    pass_count: int
+    pass_rate: float
+    requirement_state_stability: float
+    source_set_stability: float
+    latency_p50_seconds: Optional[float]
+    latency_p95_seconds: Optional[float]
+
+
+def evaluation_run_record(fixture: EvalFixture, run, *, latency_seconds: Optional[float] = None) -> EvaluationRunRecord:
+    assessment = evaluate_research_run_snapshot(fixture, run)
+    states = tuple(sorted((str(k), v) for k, v in assessment.requirement_states.items()))
+    source_ids = tuple(sorted(str(item) for item in (getattr(run, "source_ids", ()) or ())))
+    return EvaluationRunRecord(
+        fixture_id=fixture.test_id,
+        run_id=str(getattr(run, "run_id", "unknown")),
+        status=assessment.status,
+        requirement_state_signature=states,
+        source_ids=source_ids,
+        latency_seconds=latency_seconds,
+    )
+
+
+def _mode_stability(values: Iterable[Tuple]) -> float:
+    items = list(values)
+    if not items:
+        return 1.0
+    counts: Dict[Tuple, int] = {}
+    for item in items:
+        counts[item] = counts.get(item, 0) + 1
+    return round(max(counts.values()) / len(items), 4)
+
+
+def _percentile(values: Iterable[float], fraction: float) -> Optional[float]:
+    items = sorted(float(v) for v in values)
+    if not items:
+        return None
+    if len(items) == 1:
+        return round(items[0], 4)
+    position = (len(items) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(items) - 1)
+    weight = position - lower
+    return round(items[lower] * (1 - weight) + items[upper] * weight, 4)
+
+
+def aggregate_repeated_runs(records: Iterable[EvaluationRunRecord]) -> RepeatedRunSummary:
+    items = list(records)
+    if not items:
+        raise ValueError("at least one evaluation run record is required")
+    fixture_ids = {item.fixture_id for item in items}
+    if len(fixture_ids) != 1:
+        raise ValueError("all repeated-run records must belong to one fixture")
+    latencies = [item.latency_seconds for item in items if item.latency_seconds is not None]
+    return RepeatedRunSummary(
+        fixture_id=items[0].fixture_id,
+        repetitions=len(items),
+        pass_count=sum(item.status == "PASS" for item in items),
+        pass_rate=round(sum(item.status == "PASS" for item in items) / len(items), 4),
+        requirement_state_stability=_mode_stability(item.requirement_state_signature for item in items),
+        source_set_stability=_mode_stability(item.source_ids for item in items),
+        latency_p50_seconds=_percentile(latencies, 0.50),
+        latency_p95_seconds=_percentile(latencies, 0.95),
+    )
