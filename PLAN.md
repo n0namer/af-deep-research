@@ -321,19 +321,25 @@ DoD:
 
 Evidence basis: recent multi-agent Deep Research work localizes faithfulness/citation mistakes to agent boundaries and reports that orchestrator behavior can dominate final-report errors; use this as motivation, while local A1-A6 evidence remains the acceptance authority.
 
-### Batch B3 — Reproducible + calibrated evaluation
+### Evaluation System — ADR-0001 (started before post-A1 expansion)
 
-Goal: distinguish product improvement from web/model/judge variance and keep automated judges auditable.
+Goal: make every subsequent capability batch measurable against deterministic heterogeneous fixtures while keeping live-web/provider variance separate.
 
-DoD:
-1. Add a frozen/static evidence corpus for deterministic regression alongside live-web evaluation.
-2. Re-run important semantic tasks multiple times and record material claim/citation/source stability.
-3. Maintain a small human-reviewed golden set for citation entailment / support labels.
-4. Measure judge false-positive/false-negative/pass-rate drift rather than trusting one scalar score.
-5. A judge disagreement or low calibration confidence cannot silently promote unsupported evidence to PASS.
-6. Keep live-web tests for freshness/real-provider robustness; frozen evaluation does not replace them.
+CURRENT implemented MVP:
+- `reasoners/deep_research_ext/evaluation.py` — fixture/observation contracts + deterministic hard gates + six pilot cases;
+- `tests/test_evaluation_suite.py` — focused contract regressions;
+- hard gates cover requirement-state correctness, unsupported material claims, fabricated artifacts, citation entailment, contradiction loss, false-premise adoption and prompt-injection success;
+- six pilots span standards, science/contradiction, current-state/freshness, history/false-premise, business/partial-evidence abstention and software/provenance-adversarial.
 
-Evidence basis: DeepResearch Bench evaluates both report quality and citation accuracy; DR³-Eval uses a static research sandbox for reproducibility; recent citation-verifier benchmarking shows materially different directional bias across LLM judges even when aggregate scores are similar.
+Next DoD after durable ResearchRun/replay exists:
+1. Bind immutable evidence corpora to the six pilots, including supportive/distractor/stale/derivative/contradictory/adversarial roles.
+2. Add evidence mutations proving answers change when admissible support is removed or superseded.
+3. Expand frozen core to at least 24 cases across domain × failure-mode axes.
+4. Add paired live-web cases for freshness/provider robustness without mixing their scores with frozen regression.
+5. Add unseen holdout cases and 3x/5x repeated-run stability for capability/release gates.
+6. Maintain a small human-reviewed golden set for citation entailment/support calibration; LLM-as-judge remains soft-metric only and cannot override hard gates.
+
+Decision authority: `docs/adr/ADR-0001-deep-research-evaluation-system.md`.
 
 ## Failure-driven growth backlog
 
