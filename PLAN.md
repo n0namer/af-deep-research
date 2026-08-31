@@ -152,9 +152,15 @@ Interpretation: the epistemic firewall is working fail-closed at the final gate,
 
 ## Current open product defects / blockers
 
-### P0 — final verification is sequential and dominates latency
+### CLOSED — bounded-parallel final verification source batch
 
-CURRENT `/app/reasoners/deep_research_ext/final_verifier.py` performs one awaited exact-source adjudication per material draft claim in a sequential loop. This preserves correctness but creates avoidable wall-clock latency. The next implementation should use bounded concurrency, preserve deterministic claim/result association, and fail closed per claim on adjudication exceptions.
+The sequential final-verifier bottleneck is fixed in accepted permanent-DEV source. `final_verifier.py` now uses bounded concurrency (default `6`), preserves deterministic claim/result order and claim-to-source attribution, and fails closed per claim on ordinary adjudicator exceptions. Fresh evidence: compile PASS, targeted verifier regression `4 PASS`, full suite `43 PASS`, controlled scheduling-layer check about `0.604s -> 0.101s` for 12 identical 50ms adjudications. Runtime loading of this accepted source is still pending.
+
+### P0 — restore permanent DEV runtime on the accepted source
+
+The current blocker is runtime recovery, not product implementation. The original `deep-research` container was cleanly stopped while attempting same-runtime reload; Docker restart policy `on-failure` did not restart a clean exit. Native Coolify compose recovery then failed because `control-plane-build` attempted GitHub access without usable credentials. The validated `/app` source volume is preserved and new-generation containers exist in `created` state.
+
+DoD for recovery: start the existing required DEV containers without GitHub/build/source reconciliation; prove the `deep-research` container mounts the preserved `/app` volume and accepted hashes; prove runtime health and AgentField registration; prove loaded `execute_verified_deep_research` schema exposes `max_gap_rounds`; then proceed directly to semantic canary/A1. Do not solve this by editing application code in GitHub or by redeploying source.
 
 ### P0 — A1 semantic acceptance is still not achieved
 
