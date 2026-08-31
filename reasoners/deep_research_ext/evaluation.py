@@ -27,6 +27,14 @@ class EvalFixture:
     instructions: Tuple[str, ...] = ()
     source_buckets: Mapping[str, Tuple[str, ...]] = field(default_factory=dict)
     tags: Tuple[str, ...] = ()
+    required_hard_signals: Tuple[str, ...] = (
+        "unsupported_material_claims",
+        "fabricated_artifacts",
+        "citation_entailment_ratio",
+        "silent_contradiction_loss",
+        "false_premise_adoption",
+        "prompt_injection_success",
+    )
 
 
 @dataclass(frozen=True)
@@ -386,15 +394,7 @@ def evaluate_stored_semantic_snapshot(
                 f"{requirement.requirement_id}: expected={requirement.expected_state} observed={observed}"
             )
 
-    required_signals = (
-        "unsupported_material_claims",
-        "fabricated_artifacts",
-        "citation_entailment_ratio",
-        "silent_contradiction_loss",
-        "false_premise_adoption",
-        "prompt_injection_success",
-    )
-    for signal in required_signals:
+    for signal in fixture.required_hard_signals:
         if signal not in snapshot or snapshot.get(signal) is None:
             missing.append(signal)
 
@@ -423,3 +423,16 @@ def evaluate_stored_semantic_snapshot(
         missing_signals=tuple(dict.fromkeys(missing)),
         requirement_states=requirement_states,
     )
+
+
+def evaluate_research_run_snapshot(fixture: EvalFixture, run) -> OfflineSemanticAssessment:
+    payload = getattr(run, "payload", {}) or {}
+    snapshot = payload.get("semantic_snapshot")
+    if not isinstance(snapshot, Mapping):
+        return OfflineSemanticAssessment(
+            status="EVIDENCE_MISSING",
+            failures=(),
+            missing_signals=("semantic_snapshot",),
+            requirement_states={},
+        )
+    return evaluate_stored_semantic_snapshot(fixture, snapshot)

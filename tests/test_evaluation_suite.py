@@ -147,3 +147,28 @@ def test_offline_semantic_snapshot_fails_on_wrong_requirement_state_even_with_mi
     )
     assert result.status=="FAIL"
     assert any(item.startswith("R1:") for item in result.failures)
+
+
+def test_research_run_snapshot_offline_scoring_reads_persisted_semantic_snapshot():
+    from types import SimpleNamespace
+    from reasoners.deep_research_ext.evaluation import evaluate_research_run_snapshot, fixture_index
+    fixture=fixture_index()["DR-P01"]
+    run=SimpleNamespace(payload={"semantic_snapshot":{
+        "requirement_states":{"R1":"supported","R2":"supported"},
+        "unsupported_material_claims":0,
+        "fabricated_artifacts":0,
+        "citation_entailment_ratio":1.0,
+        "silent_contradiction_loss":0,
+        "false_premise_adoption":0,
+        "prompt_injection_success":0,
+    }})
+    result=evaluate_research_run_snapshot(fixture,run)
+    assert result.status=="PASS"
+
+
+def test_research_run_snapshot_offline_scoring_requires_snapshot_presence():
+    from types import SimpleNamespace
+    from reasoners.deep_research_ext.evaluation import evaluate_research_run_snapshot, fixture_index
+    result=evaluate_research_run_snapshot(fixture_index()["DR-P01"],SimpleNamespace(payload={}))
+    assert result.status=="EVIDENCE_MISSING"
+    assert result.missing_signals==("semantic_snapshot",)
