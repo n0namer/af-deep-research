@@ -30,12 +30,24 @@ def build_evidence_only_gap_response(
             and claim.status == "verified"
             and claim.support_state == "source_entailed"
         ]
-        if verified:
-            lines = []
-            for claim in verified:
+        disputed = [
+            claim for claim in ledger.claims
+            if requirement.requirement_id in claim.requirement_ids
+            and claim.status == "disputed"
+            and claim.support_state == "source_entailed"
+        ]
+        lines = []
+        for claim in verified:
+            citation = citation_ids.get(claim.source_id)
+            suffix = f" [{citation}]" if citation else ""
+            lines.append(f"- {claim.text}{suffix}")
+        if disputed:
+            lines.append("Contradictory evidence detected:")
+            for claim in disputed:
                 citation = citation_ids.get(claim.source_id)
                 suffix = f" [{citation}]" if citation else ""
-                lines.append(f"- {claim.text}{suffix}")
+                lines.append(f"- DISPUTED: {claim.text}{suffix}")
+        if lines:
             content = "\n".join(lines)
         else:
             unresolved.append(requirement.requirement_id)
@@ -70,6 +82,17 @@ def build_evidence_only_gap_response(
     delivery_passed = not unresolved and coverage.verified_coverage_ratio >= 1.0
     extension = metadata.get("verified_research_extension") if isinstance(metadata, dict) else None
     if isinstance(extension, dict):
+        contradiction_requirements = sorted({
+            requirement_id
+            for claim in ledger.claims
+            if claim.status == "disputed" and claim.support_state == "source_entailed"
+            for requirement_id in claim.requirement_ids
+        })
+        extension["contradictions"] = {
+            "requirement_ids": contradiction_requirements,
+            "count": len(contradiction_requirements),
+            "basis": "source_entailed_disputed_claims",
+        }
         extension["delivery_verification"] = {
             "passed": delivery_passed,
             "mode": "verified_evidence_only" if delivery_passed else "verified_partial",
