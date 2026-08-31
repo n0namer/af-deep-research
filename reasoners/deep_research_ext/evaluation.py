@@ -151,3 +151,129 @@ def pilot_fixtures() -> Tuple[EvalFixture, ...]:
 def fixture_index(fixtures: Optional[Iterable[EvalFixture]] = None) -> Dict[str, EvalFixture]:
     items = tuple(fixtures) if fixtures is not None else pilot_fixtures()
     return {fixture.test_id: fixture for fixture in items}
+
+
+@dataclass(frozen=True)
+class FrozenDocument:
+    document_id: str
+    title: str
+    source_url: str
+    source_class: str
+    provenance_group: str
+    role: Literal["supportive", "distractor", "stale", "derivative", "contradictory", "adversarial"]
+    content: str
+    content_sha256: str
+    supports: Tuple[str, ...] = ()
+    contradicts: Tuple[str, ...] = ()
+    admissible: bool = True
+
+
+@dataclass(frozen=True)
+class FrozenCorpus:
+    fixture_id: str
+    version: str
+    documents: Tuple[FrozenDocument, ...]
+
+
+@dataclass(frozen=True)
+class ReplayResult:
+    fixture_id: str
+    corpus_version: str
+    observation: EvalObservation
+    gate: GateResult
+    used_document_ids: Tuple[str, ...]
+
+
+def _sha256_text(text: str) -> str:
+    import hashlib
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def pilot_frozen_corpora() -> Dict[str, FrozenCorpus]:
+    rfc9000 = """Internet Engineering Task Force (IETF)                   J. Iyengar, Ed.
+Request for Comments: 9000                                        Fastly
+Category: Standards Track                                M. Thomson, Ed.
+ISSN: 2070-1721                                                  Mozilla
+                                                                May 2021
+
+           QUIC: A UDP-Based Multiplexed and Secure Transport
+
+Abstract
+
+   This document defines the core of the QUIC transport protocol.
+
+Status of This Memo
+
+   This is an Internet Standards Track document.
+   This document is a product of the Internet Engineering Task Force (IETF).
+"""
+    primary = FrozenDocument(
+        document_id="RFC9000-primary",
+        title="RFC 9000 — QUIC: A UDP-Based Multiplexed and Secure Transport",
+        source_url="https://www.rfc-editor.org/rfc/rfc9000.txt",
+        source_class="primary_standard",
+        provenance_group="rfc-editor.org:rfc9000",
+        role="supportive",
+        content=rfc9000,
+        content_sha256=_sha256_text(rfc9000),
+        supports=("R1", "R2"),
+    )
+    distractor_text = "A secondary explainer discusses QUIC but is not authoritative for the standard identifier or publication date."
+    distractor = FrozenDocument(
+        document_id="QUIC-secondary-distractor",
+        title="Secondary QUIC explainer",
+        source_url="fixture://secondary/quic",
+        source_class="secondary",
+        provenance_group="fixture-secondary",
+        role="distractor",
+        content=distractor_text,
+        content_sha256=_sha256_text(distractor_text),
+        admissible=False,
+    )
+    return {
+        "DR-P01": FrozenCorpus(fixture_id="DR-P01", version="1.0", documents=(primary, distractor)),
+    }
+
+
+def mutate_corpus_remove_documents(corpus: FrozenCorpus, document_ids: Iterable[str]) -> FrozenCorpus:
+    removed = set(document_ids)
+    return FrozenCorpus(
+        fixture_id=corpus.fixture_id,
+        version=f"{corpus.version}+remove:{','.join(sorted(removed))}",
+        documents=tuple(doc for doc in corpus.documents if doc.document_id not in removed),
+    )
+
+
+def replay_frozen_fixture(fixture: EvalFixture, corpus: FrozenCorpus) -> ReplayResult:
+    if corpus.fixture_id != fixture.test_id:
+        raise ValueError(f"fixture/corpus mismatch: {fixture.test_id} != {corpus.fixture_id}")
+    states: Dict[str, RequirementState] = {}
+    used: List[str] = []
+    for requirement in fixture.requirements:
+        supportive = []
+        contradictory = []
+        for doc in corpus.documents:
+            if not doc.admissible:
+                continue
+            if requirement.required_source_class and doc.source_class != requirement.required_source_class:
+                continue
+            if requirement.requirement_id in doc.supports:
+                supportive.append(doc)
+            if requirement.requirement_id in doc.contradicts:
+                contradictory.append(doc)
+        if contradictory:
+            states[requirement.requirement_id] = "contradicted"
+            used.extend(doc.document_id for doc in contradictory)
+        elif supportive:
+            states[requirement.requirement_id] = "supported"
+            used.extend(doc.document_id for doc in supportive)
+        else:
+            states[requirement.requirement_id] = "unresolved"
+    observation = EvalObservation(requirement_states=states)
+    return ReplayResult(
+        fixture_id=fixture.test_id,
+        corpus_version=corpus.version,
+        observation=observation,
+        gate=evaluate_hard_gates(fixture, observation),
+        used_document_ids=tuple(dict.fromkeys(used)),
+    )
