@@ -359,10 +359,12 @@ CURRENT evaluation milestones:
 5. DONE — repeated-run aggregator measures pass rate, requirement-state/source-set stability, and latency p50/p95.
 
 Next evaluation DoD:
-1. Instrument missing semantic hard signals in actual `ResearchRun` snapshots: contradiction-loss, false-premise adoption, prompt-injection success; do not infer zeros from absence.
-2. Add paired live-web cases for freshness/provider robustness only after provider availability is healthy enough for meaningful runs; keep live scores separate from frozen regression.
-3. Run capability gates 3x and release-critical gates 5x when live execution cost/availability permits, using the repeated-run aggregator.
-4. Maintain a small human-reviewed golden set for citation entailment/support calibration; LLM-as-judge remains soft-metric only and cannot override hard gates.
+1. DONE — contradiction-loss is instrumented end-to-end: `disputed + source_entailed` claims are preserved in evidence-only delivery, structured contradiction requirement ids are emitted in `verified_research_extension.contradictions`, semantic requirement state becomes `contradicted`, and `silent_contradiction_loss` is the deterministic count of detected contradiction requirements missing from delivered contradiction metadata.
+2. Instrument false-premise adoption without inferring zeros from absence; add an explicit premise-check state tied to the Answer Contract before synthesis.
+3. Instrument prompt-injection success without trusting retrieved instructions; prefer deterministic boundary evidence over narrative heuristics.
+4. Add paired live-web cases for freshness/provider robustness only after provider availability is healthy enough for meaningful runs; keep live scores separate from frozen regression.
+5. Run capability gates 3x and release-critical gates 5x when live execution cost/availability permits, using the repeated-run aggregator.
+6. Maintain a small human-reviewed golden set for citation entailment/support calibration; LLM-as-judge remains soft-metric only and cannot override hard gates.
 
 Decision authority: `docs/adr/ADR-0001-deep-research-evaluation-system.md`.
 
