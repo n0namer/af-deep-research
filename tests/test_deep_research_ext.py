@@ -411,6 +411,78 @@ def test_final_verifier_accepts_when_every_material_claim_is_cited_and_entailed(
     assert state.supported_claim_count == 1
 
 
+
+def test_final_verifier_bounds_concurrency_and_preserves_claim_order_on_failures():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.final_verifier import DraftClaim, DraftClaimList, verify_final_document
+
+    document = {
+        "executive_summary": "A [1]. B [1]. C [1].",
+        "sections": [],
+        "source_notes": [{"citation_id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "domain": "rfc-editor.org"}],
+    }
+    research = {
+        "source_articles": [{"id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "content": "Evidence."}]
+    }
+    async def fake_extract(**kwargs):
+        return DraftClaimList(claims=[
+            DraftClaim(claim_id="D1", text="A.", citation_ids=[1]),
+            DraftClaim(claim_id="D2", text="B.", citation_ids=[1]),
+            DraftClaim(claim_id="D3", text="C.", citation_ids=[1]),
+        ])
+
+    active = {"count": 0, "max": 0}
+    completed = []
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        claim_id = batch[0].fact_id.split(":", 1)[0]
+        active["count"] += 1
+        active["max"] = max(active["max"], active["count"])
+        try:
+            if claim_id == "D1":
+                await asyncio.sleep(0.03)
+                completed.append(claim_id)
+                return AIAssessmentList(assessments=[
+                    AIAssessment(
+                        fact_id=batch[0].fact_id,
+                        is_allowed=True,
+                        is_source_supported=True,
+                        is_verified=True,
+                        disagreement_score=0.0,
+                    )
+                ])
+            if claim_id == "D2":
+                await asyncio.sleep(0.01)
+                completed.append(claim_id)
+                return AIAssessmentList(assessments=[])
+            await asyncio.sleep(0.02)
+            completed.append(claim_id)
+            raise RuntimeError("synthetic adjudication failure")
+        finally:
+            active["count"] -= 1
+
+    state = asyncio.run(verify_final_document(
+        document_package=document,
+        research_package=research,
+        source_strictness="strict",
+        ai_call=lambda **kwargs: None,
+        claim_extractor=fake_extract,
+        adjudicator=fake_adjudicator,
+        max_concurrent_adjudications=2,
+    ))
+
+    assert active["max"] == 2
+    assert completed != ["D1", "D2", "D3"]
+    assert state.material_claim_count == 3
+    assert state.supported_claim_count == 1
+    assert state.passed is False
+    assert [claim.claim_id for claim in state.unsupported_claims] == ["D2", "D3"]
+    assert [claim.reason for claim in state.unsupported_claims] == [
+        "cited_evidence_does_not_entail_claim",
+        "claim_verification_failed_closed",
+    ]
+
+
 def test_verified_pipeline_rejects_strict_writer_draft_when_final_verifier_fails(monkeypatch):
     from doc_generation_pipeline import DocumentResponse
     from reasoners.deep_research_ext import verified_pipeline as vp

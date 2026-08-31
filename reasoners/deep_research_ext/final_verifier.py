@@ -1,3 +1,4 @@
+import asyncio
 from typing import Awaitable, Callable, List, Optional
 from pydantic import BaseModel, Field
 from doc_generation_pipeline import AIAssessmentList, FactForAdjudication, _classify_source, _normalize_source_strictness, adjudicate_evidence_ai
@@ -72,6 +73,7 @@ async def verify_final_document(
     api_key: Optional[str] = None,
     claim_extractor: Callable[..., Awaitable[DraftClaimList]] = extract_material_draft_claims,
     adjudicator: Callable[..., Awaitable[AIAssessmentList]] = adjudicate_evidence_ai,
+    max_concurrent_adjudications: int = 6,
 ) -> FinalVerificationState:
     claims = await claim_extractor(
         document_package=document_package,
@@ -90,19 +92,16 @@ async def verify_final_document(
         for article in research_package.get("source_articles", []) or []
     }
 
-    unsupported: List[UnsupportedDraftClaim] = []
-    supported_count = 0
-    for claim in claims.claims:
+    semaphore = asyncio.Semaphore(max(1, int(max_concurrent_adjudications)))
+
+    async def verify_one_claim(claim: DraftClaim):
         if not claim.citation_ids:
-            unsupported.append(
-                UnsupportedDraftClaim(
-                    claim_id=claim.claim_id,
-                    text=claim.text,
-                    citation_ids=[],
-                    reason="material_claim_has_no_citation",
-                )
+            return False, UnsupportedDraftClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                citation_ids=[],
+                reason="material_claim_has_no_citation",
             )
-            continue
 
         candidates = []
         for citation_id in claim.citation_ids:
@@ -126,34 +125,48 @@ async def verify_final_document(
             )
 
         if not candidates:
-            unsupported.append(
-                UnsupportedDraftClaim(
-                    claim_id=claim.claim_id,
-                    text=claim.text,
-                    citation_ids=claim.citation_ids,
-                    reason="cited_source_not_available_for_verification",
-                )
+            return False, UnsupportedDraftClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                citation_ids=claim.citation_ids,
+                reason="cited_source_not_available_for_verification",
             )
-            continue
 
-        result = await adjudicator(
-            candidates,
-            normalized,
-            model=model,
-            api_key=api_key,
-            ai_call=ai_call,
-        )
-        if any(item.is_allowed and item.is_source_supported for item in result.assessments):
-            supported_count += 1
-        else:
-            unsupported.append(
-                UnsupportedDraftClaim(
-                    claim_id=claim.claim_id,
-                    text=claim.text,
-                    citation_ids=claim.citation_ids,
-                    reason="cited_evidence_does_not_entail_claim",
+        try:
+            async with semaphore:
+                result = await adjudicator(
+                    candidates,
+                    normalized,
+                    model=model,
+                    api_key=api_key,
+                    ai_call=ai_call,
                 )
+        except Exception:
+            return False, UnsupportedDraftClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                citation_ids=claim.citation_ids,
+                reason="claim_verification_failed_closed",
             )
+
+        if any(item.is_allowed and item.is_source_supported for item in result.assessments):
+            return True, None
+        return False, UnsupportedDraftClaim(
+            claim_id=claim.claim_id,
+            text=claim.text,
+            citation_ids=claim.citation_ids,
+            reason="cited_evidence_does_not_entail_claim",
+        )
+
+    verification_results = await asyncio.gather(
+        *(verify_one_claim(claim) for claim in claims.claims)
+    )
+    supported_count = sum(1 for is_supported, _ in verification_results if is_supported)
+    unsupported = [
+        unsupported_claim
+        for is_supported, unsupported_claim in verification_results
+        if not is_supported and unsupported_claim is not None
+    ]
 
     total = len(claims.claims)
     return FinalVerificationState(
