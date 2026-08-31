@@ -90,11 +90,13 @@ CURRENT /app
 -> bounded live patch
 -> targeted unit/regression
 -> targeted pipeline/reasoner canary
--> reload/restart only if required
+-> exact same-container reload/restart only if required
 -> functional canary
 -> semantic E2E
 -> iterate
 ```
+
+Hard inner-loop prohibition for Lane A Deep Research: **NO application redeploy, NO rebuild, NO `StartApplication`, NO `RestartApplication`, NO GitHub-code-edit -> deploy loop.** Runtime recovery/iteration must reuse the existing DEV containers/images/volumes and exact process/container lifecycle only. GitHub may be used for SoT/status write-back and later durable accepted-source checkpointing, not as the transport for debug iterations.
 
 Git is the durable checkpoint for accepted increments, not the mandatory transport for every debug hypothesis. Other branches/PRs/commits may be read as a candidate-fix library and useful code may be transplanted directly into permanent DEV for fast verification.
 
