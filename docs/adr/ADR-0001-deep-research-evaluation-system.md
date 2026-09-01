@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-08-31
+Amended: 2026-09-01 — semantic correctness / provider reliability separation
 Owner: Lane A — Deep Research
 
 ## Context
