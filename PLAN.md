@@ -208,7 +208,7 @@ BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is e
 
 ### Goal
 
-Make completed `ResearchRun` artifacts independently scoreable offline without retrieval/LLM, fail closed when required semantic evidence was not captured, then instrument the next missing hard signals before returning to exact A1. No redeploy/rebuild/GitHub-code transport.
+Run Deep Research semantic evaluation without project-level response budgets or timeout-driven semantic substitutions, while measuring Gonka/provider reliability separately. Preserve low-concurrency load shaping, durable ResearchRun/provider telemetry, and all hard epistemic gates. Complete the live RFC false-premise anchor on the same task, regardless of provider latency, unless a true semantic/state defect appears. No redeploy/rebuild/GitHub-code transport.
 
 ### Fresh evidence / localization
 
