@@ -725,3 +725,49 @@ def test_semantic_snapshot_counts_false_premise_adoption_fail_closed():
     assert adopted["false_premise_adoption"]==1
     assert challenged["false_premise_adoption"]==0
     assert challenged["requirement_states"]["R1"]=="contradicted"
+
+
+def test_semantic_profile_ignores_requirement_budget():
+    import asyncio, os
+    from reasoners.deep_research_ext.requirement_decomposition import RequirementProposal, RequirementProposalList, decompose_answer_contract
+    from reasoners.deep_research_ext.task_contract import build_answer_contract
+    old_p=os.environ.get("DR_EVAL_PROFILE"); old_t=os.environ.get("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS")
+    os.environ["DR_EVAL_PROFILE"]="semantic"; os.environ["DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS"]="0.001"
+    async def slow_ok(**kwargs):
+        await asyncio.sleep(0.02)
+        return RequirementProposalList(requirements=[RequirementProposal(question="Verify premise",role="premise_check")])
+    try:
+        r=asyncio.run(decompose_answer_contract(build_answer_contract("Explain why X replaced Y"),ai_call=slow_ok))
+        assert r.requirements[0].role=="premise_check"
+    finally:
+        os.environ.pop("DR_EVAL_PROFILE",None) if old_p is None else os.environ.__setitem__("DR_EVAL_PROFILE",old_p)
+        os.environ.pop("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS",None) if old_t is None else os.environ.__setitem__("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS",old_t)
+
+
+def test_resilience_profile_keeps_requirement_timeout_fallback():
+    import asyncio, os
+    from reasoners.deep_research_ext.requirement_decomposition import decompose_answer_contract
+    from reasoners.deep_research_ext.task_contract import build_answer_contract
+    old_p=os.environ.get("DR_EVAL_PROFILE"); old_t=os.environ.get("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS")
+    os.environ["DR_EVAL_PROFILE"]="resilience"; os.environ["DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS"]="0.001"
+    async def slow(**kwargs): await asyncio.sleep(0.05)
+    try:
+        r=asyncio.run(decompose_answer_contract(build_answer_contract("Explain why RFC 9114 replaced RFC 9000"),ai_call=slow))
+        assert [(x.requirement_id,x.role) for x in r.requirements]==[("R1","premise_check"),("R2","answer")]
+    finally:
+        os.environ.pop("DR_EVAL_PROFILE",None) if old_p is None else os.environ.__setitem__("DR_EVAL_PROFILE",old_p)
+        os.environ.pop("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS",None) if old_t is None else os.environ.__setitem__("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS",old_t)
+
+
+def test_provider_telemetry_records_safe_metadata_only():
+    import asyncio, main
+    from reasoners.deep_research_ext.provider_telemetry import provider_events_snapshot, reset_provider_events
+    old=main.app.ai
+    async def fake(*args,**kwargs): await asyncio.sleep(0.001); return "ok"
+    main.app.ai=fake; reset_provider_events()
+    try:
+        assert asyncio.run(main.ai_with_dynamic_params(system="s",user="u",schema=main.QueryClassification))=="ok"
+        e=provider_events_snapshot(); assert len(e)==1 and e[0]["operation"]=="QueryClassification" and e[0]["status"]=="success"
+        assert not any(k in e[0] for k in ("api_key","prompt","response","error_message"))
+    finally:
+        main.app.ai=old
