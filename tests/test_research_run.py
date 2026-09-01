@@ -143,3 +143,70 @@ def test_agentfield_replay_source_run_reuses_saved_research_package():
     assert replay.source_ids==('S1',)
     assert replay.payload['research_package']['source_articles'][0]['id']==1
     assert next_resume_stage(replay)=='evidence_verification'
+
+
+def test_research_run_and_provider_started_are_durable_before_slow_decomposition_finishes():
+    import asyncio, os, shutil
+    from types import SimpleNamespace
+    from agentfield.execution_context import set_execution_context, reset_execution_context
+    from reasoners.deep_research_ext.bootstrap import install_verified_deep_research
+    from reasoners.deep_research_ext.provider_telemetry import record_provider_event
+
+    root='/tmp/dr-preprovider-durable'
+    shutil.rmtree(root, ignore_errors=True)
+    old_root=os.environ.get('DR_RESEARCH_RUN_DIR')
+    old_profile=os.environ.get('DR_EVAL_PROFILE')
+    os.environ['DR_RESEARCH_RUN_DIR']=root
+    os.environ['DR_EVAL_PROFILE']='semantic'
+    started=asyncio.Event()
+    release=asyncio.Event()
+
+    class FakeApp:
+        def reasoner(self):
+            return lambda fn: fn
+
+    async def fake_ai_call(**kwargs):
+        record_provider_event(
+            operation='RequirementProposalList', status='started', latency_seconds=0.0,
+            model='fake-model', call_id='call-test-1',
+        )
+        started.set()
+        await release.wait()
+        raise AssertionError('test should cancel before provider completes')
+
+    async def unused_upstream(**kwargs):
+        raise AssertionError('upstream should not run before decomposition finishes')
+
+    app=FakeApp()
+    reasoner=install_verified_deep_research(app, unused_upstream, ai_call=fake_ai_call)
+    token=set_execution_context(SimpleNamespace(run_id='run_preprovider_durable', replay_source_run_id=None))
+    try:
+        async def scenario():
+            task=asyncio.create_task(reasoner(query='Why did X replace Y?'))
+            await asyncio.wait_for(started.wait(), timeout=2)
+            path=Path(root, 'run_preprovider_durable.json')
+            assert path.exists()
+            run=ResearchRunStore(root).load('run_preprovider_durable')
+            assert run is not None
+            assert run.stage=='started'
+            assert run.status=='running'
+            assert run.checkpoint_seq==0
+            events=(run.payload or {}).get('provider_events', [])
+            assert events
+            assert events[-1]['status']=='started'
+            assert events[-1]['call_id']=='call-test-1'
+            assert 'prompt' not in events[-1]
+            assert 'response' not in events[-1]
+            assert 'api_key' not in events[-1]
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        asyncio.run(scenario())
+    finally:
+        reset_execution_context(token)
+        if old_root is None: os.environ.pop('DR_RESEARCH_RUN_DIR', None)
+        else: os.environ['DR_RESEARCH_RUN_DIR']=old_root
+        if old_profile is None: os.environ.pop('DR_EVAL_PROFILE', None)
+        else: os.environ['DR_EVAL_PROFILE']=old_profile
