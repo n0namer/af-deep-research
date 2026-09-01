@@ -76,9 +76,15 @@ app = Agent(
     ai_config=ai_config,
 )
 
-# Keep DEV research iterations bounded when a provider stalls or rate-limits.
-app.async_config.llm_call_timeout = float(os.getenv("DR_LLM_CALL_TIMEOUT_SECONDS", "45"))
-os.environ.setdefault("AGENTFIELD_AI_TIMEOUT_RETRIES", os.getenv("DR_LLM_TIMEOUT_RETRIES", "1"))
+DR_EVAL_PROFILE = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
+if DR_EVAL_PROFILE == "resilience":
+    app.async_config.llm_call_timeout = float(os.getenv("DR_LLM_CALL_TIMEOUT_SECONDS", "45"))
+    os.environ.setdefault("AGENTFIELD_AI_TIMEOUT_RETRIES", os.getenv("DR_LLM_TIMEOUT_RETRIES", "1"))
+else:
+    # Semantic evaluation has no product-level response budget. This is only a
+    # transport safety ceiling against a dead socket, not an acceptance gate.
+    app.async_config.llm_call_timeout = float(os.getenv("DR_SEMANTIC_TRANSPORT_TIMEOUT_SECONDS", "1800"))
+    os.environ.setdefault("AGENTFIELD_AI_TIMEOUT_RETRIES", os.getenv("DR_SEMANTIC_LLM_TIMEOUT_RETRIES", "2"))
 
 
 # ==============================================================================
