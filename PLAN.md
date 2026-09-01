@@ -258,6 +258,38 @@ Fresh validation after BMad Quick Dev implementation + review:
 - Do not interpret provider count as source independence; evidence provenance/derivative-source rules remain authoritative.
 - The existing long false-premise anchor is a background execution on already-loaded pre-feature modules; do not use its result as proof of this federated-search increment.
 
+## Current 30-minute batch — quality-score NaN provider defect
+
+BMAD route: `[BH] BMad Help -> [QQ] Quick Dev`. Code changes remain container-first in permanent DEV `/app`; GitHub is SoT write-back only.
+
+### Failure evidence / diagnosis
+
+- The long false-premise anchor `run_1788265445388_fac350f9` progressed through decomposition, classification, adaptive search, evidence extraction, entity extraction and relationship extraction, then failed at `assess_research_completeness` / `ResearchQualityScore` with provider HTTP 400: `Out of range float values are not JSON compliant: nan`.
+- That process became a zombie while AgentField control plane still reported execution `exec_1788265445409_066060b7` as `running`; the exact orphan execution was cancelled and verified `cancelled`.
+- A broad hypothesis that non-finite local `ai_config` values caused the failure was tested and rejected: CURRENT numeric config is finite, a broad finite-control sanitizer did not remove the live 400, and that sanitizer was fully reverted.
+- Adding numeric JSON-schema bounds `confidence_score: Field(ge=0.0, le=1.0)` did not remove the live 400. A string-valued structured JSON transport for the same field also did not remove it.
+- Exact request introspection with `litellm.acompletion` monkeypatched before network transmission found `NONFINITE_PATHS=[]` in the actual outgoing request payload. Therefore the NaN is generated inside the Gonka/proxy/model structured-output path, not by Deep Research request data.
+
+### Final bounded workaround
+
+- Keep internal `ResearchQualityScore.confidence_score` machine-bounded to `0.0..1.0`.
+- Only `assess_research_completeness` stops using provider `response_format/json_schema`; it requests one plain-text line: `confidence=0.75; adequacy=moderate; gaps=true`.
+- `_parse_research_quality_text()` accepts only finite confidence `0..1`, adequacy `sufficient|moderate|insufficient`, and boolean `gaps`. Any missing/malformed/non-finite/out-of-range content fails closed to `confidence=0.0`, `evidence_adequacy=insufficient`, `critical_gaps_present=true`. `insufficient` always forces `gaps=true`.
+- Provider/network errors still propagate; only successfully received malformed quality content is converted conservatively. No evidence claim, citation, source, hard semantic gate or final-verifier contract is weakened.
+
+### CURRENT verification
+
+- `py_compile` PASS on `main.py` and `tests/test_deep_research_ext.py`.
+- Quality regressions PASS: internal score bounds reject out-of-range/NaN/Inf; plain-text parser accepts valid output and fails closed on NaN/Inf/out-of-range/garbage/missing fields.
+- Selected regression spine = `52 DIRECT REGRESSIONS PASS` on exact CURRENT `/app`.
+- Exact detached live quality-stage proof PASS on final code: PID `29353`, execution `exec_1788280799857_7ef35fd2`, run `run_1788280799796_3787d96c`; `assess_research_completeness` completed successfully in `180671ms` / about `180.81s` and returned `confidence_score=0.3`, `evidence_adequacy=insufficient`, `critical_gaps_present=true`, with no NaN/HTTP-400 failure.
+- CURRENT hashes after final fix: `main.py` `a9d55d534de11c08c4dabaa109ae6c7b6867340471792a894c49d87d445b2bb4`; `tests/test_deep_research_ext.py` `fdd03b625ab35c078b0460f2d1bc4dc4a9c25ca2eb12e171b7ec6928f8ac4e15`.
+- Two final BMad `pr-af.review` dry-runs for the plain-text workaround are still `running` in the provider/review plane: `exec_20260901_164012_1a98h89d` (adversarial) and `exec_20260901_164022_i2wnd3j2` (edge-cases). Do not claim review DoD complete until their terminal verdicts are read back.
+
+### Next bounded move
+
+Run a fresh full RFC false-premise semantic anchor on the current `/app` source using the detached fresh-process harness. Do not mutate source while that anchor is active. Acceptance remains evidence-based: explicit premise challenge, authoritative RFC evidence, no invented replacement event/date, material citation entailment, hard semantic snapshot, and terminal ResearchRun state.
+
 ## Background live anchor — semantic/provider split + live false-premise anchor
 
 BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
