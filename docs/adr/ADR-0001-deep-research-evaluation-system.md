@@ -68,7 +68,9 @@ Consequently:
 - `resilience` is a distinct profile for explicit timeout/failure-injection and degraded-mode behavior;
 - retries in semantic runs must preserve the same research task, evidence policy, and acceptance criteria;
 - concurrency may be shaped to avoid self-inflicted provider overload, but concurrency tuning must not fabricate or substitute research conclusions;
-- frozen-regression, live-web semantic results, and provider-reliability results are reported separately and must not be collapsed into one score.
+- frozen-regression, live-web semantic results, and provider-reliability results are reported separately and must not be collapsed into one score;
+- a durable `ResearchRun` MUST exist before the first external/provider call so long pre-research waits are observable and resumable;
+- provider telemetry MUST record call-start and terminal outcome/latency as a separate operational stream, without prompts, responses, credentials or raw secret-bearing errors; an in-flight provider call must be distinguishable from a dead execution without assigning a semantic verdict.
 
 This separation follows the benchmark practice of controlling changing web/provider variance with frozen/static research environments while evaluating retrieval, factual accuracy, citation behavior, instruction following and depth as distinct dimensions; it also follows distributed-systems evidence that fan-out amplifies tail latency, so tail behavior should be observed and mitigated without confusing it with semantic correctness.
 
