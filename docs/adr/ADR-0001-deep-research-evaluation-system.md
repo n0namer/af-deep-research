@@ -53,6 +53,24 @@ Do not collapse evaluation into one quality score. Record layered evidence for r
 
 LLM-as-judge may score soft dimensions such as clarity/depth/usefulness only after hard gates pass. Hard factual/citation/source-policy gates remain deterministic or gold-label based.
 
+## Semantic correctness vs provider reliability
+
+Evaluation MUST treat research semantics and provider reliability as separate planes.
+
+**Semantic plane** answers whether the research system produced an evidence-correct result. Long provider latency, 429s, transient transport/auth errors, malformed intermediate responses, or retries are not semantic FAIL conditions by themselves. A semantic run may take as long as the configured provider naturally requires. The system must not replace a slow meaningful model response with a deterministic substitute merely to satisfy a latency budget.
+
+**Provider-reliability plane** records operational behavior separately: per-call stage, attempt, latency, provider/HTTP error class, retry/backoff, schema validity, recovery, and total runtime. These metrics describe the execution environment and can gate an operational SLO, but they cannot override or stand in for the semantic verdict.
+
+Consequently:
+- `semantic` is the default evaluation profile;
+- timeout-driven semantic fallbacks are disabled in `semantic` profile;
+- `resilience` is a distinct profile for explicit timeout/failure-injection and degraded-mode behavior;
+- retries in semantic runs must preserve the same research task, evidence policy, and acceptance criteria;
+- concurrency may be shaped to avoid self-inflicted provider overload, but concurrency tuning must not fabricate or substitute research conclusions;
+- frozen-regression, live-web semantic results, and provider-reliability results are reported separately and must not be collapsed into one score.
+
+This separation follows the benchmark practice of controlling changing web/provider variance with frozen/static research environments while evaluating retrieval, factual accuracy, citation behavior, instruction following and depth as distinct dimensions; it also follows distributed-systems evidence that fan-out amplifies tail latency, so tail behavior should be observed and mitigated without confusing it with semantic correctness.
+
 ## Repeatability and holdout
 
 Development may use one run. Capability gates should use at least 3 repetitions and release-critical gates 5 when cost allows. Record material-claim, citation, source-class, abstention and latency stability, not only pass rate.
