@@ -284,7 +284,7 @@ BMAD route: `[BH] BMad Help -> [QQ] Quick Dev`. Code changes remain container-fi
 - Selected regression spine = `52 DIRECT REGRESSIONS PASS` on exact CURRENT `/app`.
 - Exact detached live quality-stage proof PASS on final code: PID `29353`, execution `exec_1788280799857_7ef35fd2`, run `run_1788280799796_3787d96c`; `assess_research_completeness` completed successfully in `180671ms` / about `180.81s` and returned `confidence_score=0.3`, `evidence_adequacy=insufficient`, `critical_gaps_present=true`, with no NaN/HTTP-400 failure.
 - CURRENT hashes after final fix: `main.py` `a9d55d534de11c08c4dabaa109ae6c7b6867340471792a894c49d87d445b2bb4`; `tests/test_deep_research_ext.py` `fdd03b625ab35c078b0460f2d1bc4dc4a9c25ca2eb12e171b7ec6928f8ac4e15`.
-- Two final BMad `pr-af.review` dry-runs for the plain-text workaround are still `running` in the provider/review plane: `exec_20260901_164012_1a98h89d` (adversarial) and `exec_20260901_164022_i2wnd3j2` (edge-cases). Do not claim review DoD complete until their terminal verdicts are read back.
+- Two final BMad `pr-af.review` dry-runs for the plain-text workaround both completed `APPROVE` with zero findings: adversarial execution `exec_20260901_164012_1a98h89d`, review `rev_9dd460425c01`; edge-case execution `exec_20260901_164022_i2wnd3j2`, review `rev_8bdf85213dfa`. Review DoD is complete for this bounded fix.
 
 ### Next bounded move
 
