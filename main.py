@@ -1410,6 +1410,7 @@ Focus on maximizing information discovery and source diversity.
     class AdaptiveSearchStreams(BaseModel):
         streams: List[SearchStream]
 
+    profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
     try:
         result = await asyncio.wait_for(
             ai_with_dynamic_params(
@@ -1419,13 +1420,17 @@ Focus on maximizing information discovery and source diversity.
                 model=model,
                 api_key=api_key,
             ),
-            timeout=float(os.getenv("DR_SEARCH_STREAM_PLANNING_TIMEOUT_SECONDS", "25")),
+            timeout=(float(os.getenv("DR_SEARCH_STREAM_PLANNING_TIMEOUT_SECONDS", "25")) if profile == "resilience" else None),
         )
         streams = [stream.dict() for stream in result.streams]
         if streams:
             return streams[: max(1, num_parallel_streams)]
     except Exception:
-        pass
+        if profile != "resilience":
+            raise
+
+    if profile != "resilience":
+        raise ValueError("search stream planner returned no streams")
 
     fallback_queries = [
         " ".join(key_question.split()),
@@ -1552,6 +1557,7 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
             facts: List[str]
             quotes: List[str]
 
+        profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
         try:
             ai_output = await asyncio.wait_for(
                 ai_with_dynamic_params(
@@ -1561,11 +1567,11 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
                     model=model,
                     api_key=api_key,
                 ),
-                timeout=float(os.getenv("DR_EVIDENCE_EXTRACTION_TIMEOUT_SECONDS", "45")),
+                timeout=(float(os.getenv("DR_EVIDENCE_EXTRACTION_TIMEOUT_SECONDS", "45")) if profile == "resilience" else None),
             )
             return ArticleEvidence(article_id=article.id, **ai_output.dict())
         except Exception as e:
-            if _is_provider_auth_error(e):
+            if profile != "resilience" or _is_provider_auth_error(e):
                 raise
             return None
 
@@ -2467,6 +2473,7 @@ Make the classification adaptive to any domain while maintaining analytical rigo
 </instructions>
 """
 
+    profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
     try:
         return await asyncio.wait_for(
             ai_with_dynamic_params(
@@ -2476,9 +2483,11 @@ Make the classification adaptive to any domain while maintaining analytical rigo
                 model=model,
                 api_key=api_key,
             ),
-            timeout=float(os.getenv("DR_QUERY_CLASSIFICATION_TIMEOUT_SECONDS", "25")),
+            timeout=(float(os.getenv("DR_QUERY_CLASSIFICATION_TIMEOUT_SECONDS", "25")) if profile == "resilience" else None),
         )
     except Exception:
+        if profile != "resilience":
+            raise
         lowered = query.lower()
         technical = any(token in lowered for token in ("rfc", "quic", "http/3", "protocol", "standard", "software", "api"))
         return QueryClassification(

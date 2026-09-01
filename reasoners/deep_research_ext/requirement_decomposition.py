@@ -53,6 +53,7 @@ Preserve explicit source-quality and temporal constraints.
 - Do not invent hidden premises; only mark propositions explicitly asserted or necessarily presupposed by the user's wording.
 </rules>
 """
+    profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
     try:
         proposal = await asyncio.wait_for(
             ai_call(
@@ -62,9 +63,11 @@ Preserve explicit source-quality and temporal constraints.
                 model=model,
                 api_key=api_key,
             ),
-            timeout=float(os.getenv("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS", "25")),
+            timeout=(float(os.getenv("DR_REQUIREMENT_DECOMPOSITION_TIMEOUT_SECONDS", "25")) if profile == "resilience" else None),
         )
     except Exception:
+        if profile != "resilience":
+            raise
         query = " ".join(contract.query.split())
         premise_patterns = (
             r"\bwhy\s+.+?\s+(?:replaced|caused|led to|resulted in|triggered)\b",
