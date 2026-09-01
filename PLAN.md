@@ -202,7 +202,60 @@ Do not bypass this guardrail with opaque shell edits, token extraction, helper c
 
 Source already contains `max_gap_rounds`; after the next tested source patch/reload, read back the permanent DEV reasoner schema and prove the loaded runtime exposes it before semantic canaries.
 
-## Current 30-minute batch — semantic/provider split + live false-premise anchor
+## Current 30-minute batch — federated multi-provider retrieval
+
+BMAD route: `[BH] BMad Help -> [QQ] Quick Dev`. Target repo has no local BMad installation, so `n0namer/BMAD-MNNZ` supplies workflow rules only; target/source of truth remains `n0namer/af-deep-research:dev/PLAN.md`. The Quick Dev working spec is temporary under `/tmp` and MUST NOT become a competing durable planning document.
+
+### Goal
+
+Replace single-provider-by-default retrieval with a bounded federated search layer that increases retrieval diversity and provider-failure tolerance without multiplying downstream evidence extraction linearly with provider count. Keep every provider in its own adapter file, preserve explicit single-provider A/B control, fuse before evidence extraction, and retain retrieval provenance separately from evidence independence.
+
+### Design / decisions
+
+- Production adapters use official structured APIs only: Brave Web Search (`BRAVE_SEARCH_API_KEY`), Perplexity Search API (`PERPLEXITY_API_KEY`, not Sonar), Kagi Search API v1 (`KAGI_API_TOKEN`), plus existing Tavily/Jina/Firecrawl/Serper adapters.
+- DuckDuckGo is intentionally deferred as a production adapter: no official general-purpose structured Web Search API was confirmed, while DuckDuckGo documents that traditional organic links are largely Bing-sourced. Do not add HTML scraping merely to increase provider count.
+- Result fusion uses canonical-URL dedupe plus Reciprocal Rank Fusion (`k=60`), not vendor relevance scores, because provider score scales are not comparable.
+- `SEARCH_MODE=auto` is the new package default: if 2+ providers are configured and no explicit `SEARCH_PROVIDER` is set, use bounded federation; with one provider or an explicit provider, preserve legacy single-provider behavior. `SEARCH_MODE=federated` forces federation; default fan-out is 2 via `SEARCH_FEDERATED_MAX_PROVIDERS`.
+- `SEARCH_PROVIDERS` controls provider order; fusion happens before downstream evidence extraction so provider fan-out does not imply evidence-call fan-out.
+- One provider failure is isolated. Durable/public error metadata stores provider name + exception class only; no raw provider body, prompt, key or secret-bearing message.
+
+### CURRENT implementation/evidence
+
+Container-first files added/changed in permanent DEV `/app` without redeploy/rebuild/restart or GitHub code transport:
+- `skills/search/brave.py`, `skills/search/perplexity.py`, `skills/search/kagi.py`;
+- `skills/search/fusion.py`, `skills/search/federated.py`;
+- `skills/search/base.py`, `skills/search/registry.py`, `skills/search/__init__.py`;
+- `.env.example`;
+- `tests/test_search_federation.py`.
+
+Fresh validation so far:
+- search package/test `py_compile` PASS;
+- 5 deterministic federation regressions PASS: URL canonicalization, RRF dedupe/provenance, partial-provider failure isolation, bounded provider selection/order, auto-mode single-provider compatibility;
+- CURRENT env availability (presence only, no secret values): Perplexity=true, Tavily=true, Firecrawl=true, Brave/Kagi/Jina/Serper=false;
+- direct Perplexity Search API smoke reached the official endpoint but returned HTTP 401; classify as current credential/entitlement/provider-plane blocker for standalone Perplexity live proof, not parser/fusion failure;
+- live federated failure-isolation PASS with `perplexity,tavily`: 9 fused results returned from Tavily while Perplexity was recorded only as `ClientResponseError`;
+- live default `SEARCH_MODE=auto` PASS on CURRENT env: selected bounded federation and returned results despite Perplexity failure;
+- explicit legacy `SEARCH_MODE=single + SEARCH_PROVIDER=tavily` PASS;
+- fresh-process application-path proof PASS: `main.search_web_for_content()` reported available `perplexity,tavily,firecrawl`, completed `via federated`, and returned 9 results without changing `main.py`.
+
+### DoD
+
+1. Provider adapters are separate files and registry-discoverable by env without code changes when future keys appear.
+2. Canonical URL dedupe + deterministic RRF preserve provider/rank provenance and do not treat duplicate discovery as independent evidence.
+3. One provider failure cannot fail a federated query when another provider succeeds; only safe error classes are exposed.
+4. Auto/single/federated routing is deterministic and bounded; explicit single-provider baseline remains available.
+5. Compile + focused deterministic tests PASS; fresh application-path integration smoke PASS.
+6. BMad Quick Dev review finds no unresolved P0/P1 correctness issue; any finding is fixed and reverified before this batch is DONE.
+7. PLAN records exact runtime hashes, review result, current Perplexity live limitation and next bounded move.
+
+### Stop / replan conditions
+
+- Do not enable unofficial DuckDuckGo scraping without explicit new approval and evidence that it adds unique retrieval value.
+- Do not raise default provider fan-out above 2 before paired frozen/live evaluation shows coverage/diversity gain without unacceptable retrieval/downstream load.
+- Do not interpret provider count as source independence; evidence provenance/derivative-source rules remain authoritative.
+- The existing long false-premise anchor is a background execution on already-loaded pre-feature modules; do not use its result as proof of this federated-search increment.
+
+## Background live anchor — semantic/provider split + live false-premise anchor
 
 BMAD route semantics: `bmad-help -> bmad-quick-dev`. No callable BMAD skill is exposed in CURRENT tools, so use the same Quick Dev stages/DoD directly and do not claim BMAD execution.
 
