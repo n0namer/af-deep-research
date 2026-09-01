@@ -97,3 +97,13 @@ Trade-offs:
 - gold fixtures require curation and versioning;
 - live-web scores remain stochastic;
 - a single PASS never proves release-grade reliability.
+
+## Evidence basis
+
+This ADR is grounded in the following evaluation/system-design evidence:
+- DeepResearch Bench (arXiv:2506.11763): evaluates research-report quality separately from retrieval/citation behavior across expert-authored tasks;
+- FutureSearch Deep Research Bench (arXiv:2506.06287): uses a frozen RetroSearch environment so changing live-web state does not destroy longitudinal comparability;
+- DR3-Eval (arXiv:2604.14683): uses per-task static research sandboxes with supportive, distracting and noisy documents and evaluates recall, factual accuracy, citation coverage, instruction following and depth separately;
+- Dean & Barroso, `The Tail at Scale` (CACM 2013): distributed fan-out amplifies tail latency, motivating separate provider/reliability measurement instead of treating tail latency as semantic failure.
+
+These sources motivate the evaluation structure; local frozen/live/holdout evidence remains the acceptance authority for this product.
