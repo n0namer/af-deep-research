@@ -172,13 +172,19 @@ The sequential final-verifier bottleneck is fixed in accepted permanent-DEV sour
 
 The current Deep Research container is running and healthy on the preserved `/app` volume. Accepted verifier/test hashes match the validated source, `/app/.git/HEAD` remains detached at `2cb0814d...`, and live schema proves `execute_verified_deep_research` + `max_gap_rounds` are loaded. No application redeploy is required for the current product loop.
 
-### P0 — bound provider stalls before A1
+### P0 — semantic correctness and provider reliability must stay separate
 
-The current semantic canary is blocked by provider/runtime boundedness, not retrieval or verifier correctness. A strict RFC canary successfully reached authoritative retrieval and downstream evidence processing, but the configured model hit transient rate limiting and a later call stalled under AgentField's default `120s` LLM timeout + `2x` safety-net + 2 retries. Client disconnect does not cancel the server-side workflow.
+The primary semantic evaluation profile MUST NOT treat slow Gonka responses, 429s, transient auth/transport errors or retries as semantic failure by themselves. A long provider response is an operational observation, not evidence that Deep Research reasoning is wrong. Timeout-driven deterministic substitutions must not replace meaningful model work in the default semantic lane.
 
-A minimal container-only patch is present in `/app/main.py`: default Deep Research LLM timeout `45s` (`DR_LLM_CALL_TIMEOUT_SECONDS`) and timeout retries `1` (`DR_LLM_TIMEOUT_RETRIES`). Syntax validation PASS. This patch must be proven loaded before using its behavior as evidence; current exact reload capability remains unavailable.
+CURRENT implementation now has two profiles:
+- `DR_EVAL_PROFILE=semantic` (default): project-level decomposition/classification/search-planning/evidence-extraction timeout fallbacks are disabled; the system waits for the provider's meaningful result and preserves native retry semantics. A configurable `DR_SEMANTIC_TRANSPORT_TIMEOUT_SECONDS` default `1800s` remains only as a dead-socket safety ceiling, not a semantic acceptance budget. AgentField timeout retries remain `2` by default;
+- `DR_EVAL_PROFILE=resilience`: short timeout/fallback behavior remains available for explicit degraded-mode/fault-injection testing (`DR_LLM_CALL_TIMEOUT_SECONDS`, `DR_LLM_TIMEOUT_RETRIES`, and stage timeout envs).
 
-DoD: obtain one evidenced same-container load/reload path without redeploy; prove the new timeout/retry values in the running process; rerun the minimal strict RFC canary; provider stall must fail/recover within bounded time; preserve retrieval/evidence/final-verifier semantics; then run exact A1.
+Concurrency shaping remains valid in both profiles because it reduces self-inflicted provider burst without inventing research conclusions: structured extraction default `1`, evidence extraction default `2` in CURRENT runtime.
+
+Provider behavior is now captured separately through `provider_telemetry.py`; logical LLM calls record operation/schema, status, latency, model and normalized error class only. No prompt, response, API key or raw error body is stored. `ResearchRun` checkpoints persist `provider_events` separately from `semantic_snapshot`.
+
+DoD: one live semantic anchor may take as long as Gonka requires; classify semantic result independently from provider reliability; record provider latency/errors/recovery in ResearchRun; patch only demonstrated semantic/state/retry-amplification defects, not slowness alone.
 
 ### P0 — A1 semantic acceptance is still not achieved
 
