@@ -87,9 +87,12 @@ async def execute_verified_pipeline(
     stream_executor: Optional[Callable[..., Awaitable[Any]]] = None,
     upstream_kwargs: Dict[str, Any],
     ai_call=None,
+    run_store=None,
+    research_run=None,
 ) -> Any:
     started = time.time()
-    run_store, research_run = begin_research_run(upstream_kwargs["query"])
+    if run_store is None or research_run is None:
+        run_store, research_run = begin_research_run(upstream_kwargs["query"])
     cached_package = research_run.payload.get("research_package") if research_run.stage != "started" else None
     if isinstance(cached_package, dict):
         package = dict(cached_package)

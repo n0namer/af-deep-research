@@ -36,8 +36,17 @@ def classify_provider_error(exc: BaseException) -> str:
     return "provider_error"
 
 
-def record_provider_event(*, operation: str, status: str, latency_seconds: float, model: Optional[str] = None, error_class: Optional[str] = None) -> None:
+def record_provider_event(
+    *,
+    operation: str,
+    status: str,
+    latency_seconds: float,
+    model: Optional[str] = None,
+    error_class: Optional[str] = None,
+    call_id: Optional[str] = None,
+) -> None:
     _events().append({
+        "call_id": call_id,
         "operation": operation,
         "status": status,
         "latency_seconds": round(float(latency_seconds), 4),

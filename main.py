@@ -12,6 +12,7 @@ import datetime
 import hashlib
 import os
 import time
+import uuid
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
@@ -201,18 +202,23 @@ async def ai_with_dynamic_params(
     merged_kwargs = {**kwargs, **dynamic_params}
     schema = kwargs.get("schema")
     operation = getattr(schema, "__name__", None) or "llm_call"
+    call_id = f"llm_{uuid.uuid4().hex[:12]}"
     started = time.monotonic()
+    record_provider_event(
+        operation=operation, status="started", latency_seconds=0.0,
+        model=model or getattr(ai_config, "model", None), call_id=call_id,
+    )
     try:
         result = await app.ai(*args, **merged_kwargs)
     except Exception as exc:
         record_provider_event(
             operation=operation, status="error", latency_seconds=time.monotonic() - started,
-            model=model or getattr(ai_config, "model", None), error_class=classify_provider_error(exc),
+            model=model or getattr(ai_config, "model", None), error_class=classify_provider_error(exc), call_id=call_id,
         )
         raise
     record_provider_event(
         operation=operation, status="success", latency_seconds=time.monotonic() - started,
-        model=model or getattr(ai_config, "model", None),
+        model=model or getattr(ai_config, "model", None), call_id=call_id,
     )
     return result
 

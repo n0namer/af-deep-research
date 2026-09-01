@@ -5,7 +5,8 @@ from .task_contract import build_answer_contract
 from .requirement_decomposition import decompose_answer_contract
 from .upstream_adapter import UpstreamDeepResearchAdapter
 from .verified_pipeline import execute_verified_pipeline
-from .provider_telemetry import reset_provider_events
+from .provider_telemetry import provider_events_snapshot, reset_provider_events
+from .research_run import begin_research_run, checkpoint_research_run
 
 
 def install_verified_deep_research(
@@ -40,14 +41,26 @@ def install_verified_deep_research(
         api_key: Optional[str] = None,
     ) -> Any:
         reset_provider_events()
+        run_store, research_run = begin_research_run(query)
         contract = build_answer_contract(query, decision=decision, research_type=research_type, source_strictness=source_strictness, as_of=as_of)
         if ai_call is not None:
-            contract = await decompose_answer_contract(
-                contract,
-                ai_call=ai_call,
-                model=model,
-                api_key=api_key,
-            )
+            try:
+                contract = await decompose_answer_contract(
+                    contract,
+                    ai_call=ai_call,
+                    model=model,
+                    api_key=api_key,
+                )
+            except Exception:
+                checkpoint_research_run(
+                    run_store, research_run, stage="failed", status="failed",
+                    payload={"failure_stage": "requirement_decomposition", "provider_events": provider_events_snapshot()},
+                )
+                raise
+        research_run = checkpoint_research_run(
+            run_store, research_run, stage="contract_ready",
+            payload={"answer_contract": contract.model_dump(), "provider_events": provider_events_snapshot()},
+        )
         methods = select_methodology(contract, research_scope=research_scope, research_focus=research_focus, verification_level=verification_level)
         trace = ExtensionTrace(answer_contract=contract, method_selection=methods, upstream_behavior_changed=False)
         upstream_kwargs = {
@@ -73,6 +86,8 @@ def install_verified_deep_research(
                 stream_executor=stream_executor,
                 upstream_kwargs=upstream_kwargs,
                 ai_call=ai_call,
+                run_store=run_store,
+                research_run=research_run,
             )
         return await adapter.execute(trace=trace, upstream_kwargs=upstream_kwargs)
 

@@ -158,6 +158,7 @@ def checkpoint_research_run(
 def next_resume_stage(run: ResearchRun) -> str:
     order = {
         "started": "research",
+        "contract_ready": "research",
         "research_package_ready": "evidence_verification",
         "evidence_verified": "synthesis",
         "synthesis_ready": "final_verification",
