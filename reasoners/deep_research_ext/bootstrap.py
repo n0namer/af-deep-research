@@ -5,8 +5,8 @@ from .task_contract import build_answer_contract
 from .requirement_decomposition import decompose_answer_contract
 from .upstream_adapter import UpstreamDeepResearchAdapter
 from .verified_pipeline import execute_verified_pipeline
-from .provider_telemetry import provider_events_snapshot, reset_provider_events
-from .research_run import begin_research_run, checkpoint_research_run
+from .provider_telemetry import provider_events_snapshot, reset_provider_events, set_provider_event_sink
+from .research_run import begin_research_run, checkpoint_research_run, refresh_research_run_payload
 
 
 def install_verified_deep_research(
@@ -42,6 +42,11 @@ def install_verified_deep_research(
     ) -> Any:
         reset_provider_events()
         run_store, research_run = begin_research_run(query)
+        set_provider_event_sink(
+            lambda events: refresh_research_run_payload(
+                run_store, research_run.run_id, {"provider_events": events}
+            )
+        )
         contract = build_answer_contract(query, decision=decision, research_type=research_type, source_strictness=source_strictness, as_of=as_of)
         if ai_call is not None:
             try:

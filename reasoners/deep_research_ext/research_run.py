@@ -166,3 +166,35 @@ def next_resume_stage(run: ResearchRun) -> str:
         "failed": "inspect_failure",
     }
     return order.get(run.stage, "inspect_checkpoint")
+
+
+def refresh_research_run_payload(
+    store: ResearchRunStore,
+    run_id: str,
+    payload_patch: Mapping[str, Any],
+) -> ResearchRun:
+    current = store.load(run_id)
+    if current is None:
+        raise FileNotFoundError(f"research run not found: {run_id}")
+    merged_payload = dict(current.payload)
+    merged_payload.update(dict(payload_patch))
+    updated = ResearchRun(
+        run_id=current.run_id,
+        query=current.query,
+        stage=current.stage,
+        checkpoint_seq=current.checkpoint_seq,
+        status=current.status,
+        created_at=current.created_at,
+        updated_at=time.time(),
+        schema_version=current.schema_version,
+        replay_source_run_id=current.replay_source_run_id,
+        source_ids=current.source_ids,
+        evidence_summary=current.evidence_summary,
+        coverage_state=current.coverage_state,
+        open_gap_ids=current.open_gap_ids,
+        conflicts=current.conflicts,
+        budgets=current.budgets,
+        payload=merged_payload,
+    )
+    store.save(updated)
+    return updated

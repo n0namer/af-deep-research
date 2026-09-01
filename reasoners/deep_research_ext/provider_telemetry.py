@@ -3,13 +3,19 @@ from __future__ import annotations
 import re
 import time
 from contextvars import ContextVar
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 _EVENTS: ContextVar[Optional[List[Dict[str, Any]]]] = ContextVar("deep_research_provider_events", default=None)
+_SINK: ContextVar[Optional[Callable[[List[Dict[str, Any]]], None]]] = ContextVar("deep_research_provider_event_sink", default=None)
 
 
 def reset_provider_events() -> None:
     _EVENTS.set([])
+    _SINK.set(None)
+
+
+def set_provider_event_sink(sink: Optional[Callable[[List[Dict[str, Any]]], None]]) -> None:
+    _SINK.set(sink)
 
 
 def _events() -> List[Dict[str, Any]]:
@@ -54,6 +60,9 @@ def record_provider_event(
         "error_class": error_class,
         "recorded_at": time.time(),
     })
+    sink = _SINK.get()
+    if sink is not None:
+        sink(provider_events_snapshot())
 
 
 def provider_events_snapshot() -> List[Dict[str, Any]]:
