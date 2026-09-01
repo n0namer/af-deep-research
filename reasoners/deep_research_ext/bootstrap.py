@@ -5,6 +5,7 @@ from .task_contract import build_answer_contract
 from .requirement_decomposition import decompose_answer_contract
 from .upstream_adapter import UpstreamDeepResearchAdapter
 from .verified_pipeline import execute_verified_pipeline
+from .provider_telemetry import reset_provider_events
 
 
 def install_verified_deep_research(
@@ -38,6 +39,7 @@ def install_verified_deep_research(
         model: Optional[str] = None,
         api_key: Optional[str] = None,
     ) -> Any:
+        reset_provider_events()
         contract = build_answer_contract(query, decision=decision, research_type=research_type, source_strictness=source_strictness, as_of=as_of)
         if ai_call is not None:
             contract = await decompose_answer_contract(

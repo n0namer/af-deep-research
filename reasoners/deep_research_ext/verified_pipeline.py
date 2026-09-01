@@ -9,6 +9,7 @@ from .gap_research import run_gap_research_round, unresolved_requirement_ids
 from .models import ExtensionTrace
 from .requirement_mapping import map_claims_to_requirements
 from .research_run import begin_research_run, checkpoint_research_run
+from .provider_telemetry import provider_events_snapshot
 from .stopping import assess_stopping
 from .synthesis_guard import build_evidence_only_gap_response, requires_programmatic_abstention
 from .verification_bridge import verify_ledger_claims
@@ -112,7 +113,7 @@ async def execute_verified_pipeline(
         source_ids = tuple(str(item.get("id")) for item in package.get("source_articles", []) if item.get("id") is not None)
         research_run = checkpoint_research_run(
             run_store, research_run, stage="research_package_ready", source_ids=source_ids,
-            payload={"research_package": package, "research_phase_metadata": research_phase_metadata},
+            payload={"research_package": package, "research_phase_metadata": research_phase_metadata, "provider_events": provider_events_snapshot()},
         )
     ledger = build_evidence_ledger(package, [])
     ledger = await map_claims_to_requirements(
@@ -171,6 +172,7 @@ async def execute_verified_pipeline(
     base_metadata = {
         "total_orchestration_time_seconds": round(time.time() - started, 2),
         "research_phase_metadata": research_phase_metadata,
+                "provider_events": provider_events_snapshot(),
         "research_run": {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage},
         "verified_research_extension": ext,
     }
@@ -187,6 +189,7 @@ async def execute_verified_pipeline(
             payload={
                 "research_package": package,
                 "research_phase_metadata": research_phase_metadata,
+                "provider_events": provider_events_snapshot(),
                 "terminal_mode": ext["mode"],
                 "semantic_snapshot": _semantic_snapshot(
                     coverage, ledger=ledger, contract=trace.answer_contract,
@@ -225,6 +228,7 @@ async def execute_verified_pipeline(
         payload={
             "research_package": package,
             "research_phase_metadata": research_phase_metadata,
+                "provider_events": provider_events_snapshot(),
             "document_package": getattr(document, "research_package", {}),
         },
     )
@@ -253,6 +257,7 @@ async def execute_verified_pipeline(
                 payload={
                     "research_package": package,
                     "research_phase_metadata": research_phase_metadata,
+                "provider_events": provider_events_snapshot(),
                     "document_package": getattr(document, "research_package", {}),
                     "terminal_mode": ext["mode"],
                     "final_verification": final_verification.model_dump(),
@@ -284,6 +289,7 @@ async def execute_verified_pipeline(
         payload={
             "research_package": package,
             "research_phase_metadata": research_phase_metadata,
+                "provider_events": provider_events_snapshot(),
             "document_package": getattr(document, "research_package", {}),
             "terminal_mode": "verified_document",
             "final_verification": final_verification.model_dump() if final_verification is not None else None,

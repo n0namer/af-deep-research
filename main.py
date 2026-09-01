@@ -19,6 +19,7 @@ import aiohttp
 from agentfield import Agent, AIConfig
 from pydantic import BaseModel, Field
 from temporal_context import get_temporal_context
+from reasoners.deep_research_ext.provider_telemetry import classify_provider_error, record_provider_event
 from doc_generation_pipeline import (
     DocumentResponse as DocGenDocumentResponse,
     FinalDocument as DocGenFinalDocument,
@@ -198,7 +199,22 @@ async def ai_with_dynamic_params(
         dynamic_params["api_base"] = litellm_params["api_base"]
 
     merged_kwargs = {**kwargs, **dynamic_params}
-    return await app.ai(*args, **merged_kwargs)
+    schema = kwargs.get("schema")
+    operation = getattr(schema, "__name__", None) or "llm_call"
+    started = time.monotonic()
+    try:
+        result = await app.ai(*args, **merged_kwargs)
+    except Exception as exc:
+        record_provider_event(
+            operation=operation, status="error", latency_seconds=time.monotonic() - started,
+            model=model or getattr(ai_config, "model", None), error_class=classify_provider_error(exc),
+        )
+        raise
+    record_provider_event(
+        operation=operation, status="success", latency_seconds=time.monotonic() - started,
+        model=model or getattr(ai_config, "model", None),
+    )
+    return result
 
 
 def create_content_hash(content: str) -> str:
