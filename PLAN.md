@@ -228,15 +228,18 @@ Container-first files added/changed in permanent DEV `/app` without redeploy/reb
 - `.env.example`;
 - `tests/test_search_federation.py`.
 
-Fresh validation so far:
-- search package/test `py_compile` PASS;
-- 5 deterministic federation regressions PASS: URL canonicalization, RRF dedupe/provenance, partial-provider failure isolation, bounded provider selection/order, auto-mode single-provider compatibility;
+Fresh validation after BMad Quick Dev implementation + review:
+- search package/application bridge `py_compile` PASS;
+- 11 deterministic federation regressions PASS, covering URL canonicalization, RRF dedupe/provenance, partial-provider failure isolation, bounded selection/order, auto-mode one-provider compatibility, hung-provider timeout isolation, safe 401 classification, auto-mode federation with 2 providers, `main.search_web_for_content()` provenance bridge, invalid timeout env fallback, and `Article` provenance persistence;
+- combined selected Deep Research regression spine = `50 DIRECT REGRESSIONS PASS` on exact CURRENT `/app`;
 - CURRENT env availability (presence only, no secret values): Perplexity=true, Tavily=true, Firecrawl=true, Brave/Kagi/Jina/Serper=false;
 - direct Perplexity Search API smoke reached the official endpoint but returned HTTP 401; classify as current credential/entitlement/provider-plane blocker for standalone Perplexity live proof, not parser/fusion failure;
-- live federated failure-isolation PASS with `perplexity,tavily`: 9 fused results returned from Tavily while Perplexity was recorded only as `ClientResponseError`;
-- live default `SEARCH_MODE=auto` PASS on CURRENT env: selected bounded federation and returned results despite Perplexity failure;
-- explicit legacy `SEARCH_MODE=single + SEARCH_PROVIDER=tavily` PASS;
-- fresh-process application-path proof PASS: `main.search_web_for_content()` reported available `perplexity,tavily,firecrawl`, completed `via federated`, and returned 9 results without changing `main.py`.
+- live federated failure-isolation PASS with `perplexity,tavily`: Tavily returned usable RFC/IETF results while Perplexity was reduced to safe `auth_error` metadata; no raw response body or credential was exposed;
+- fresh default `SEARCH_MODE=auto` application-path proof PASS: `main.search_web_for_content()` selected bounded federation on CURRENT env, returned fused results, and preserved `canonical_url`, `retrieval_providers`, `provider_ranks`, `rrf_score`, and `search_provider`; provenance is also preserved into the `Article` model so retrieval lineage survives the next pipeline boundary;
+- explicit legacy single-provider path remains available and is normalized to the same provenance contract;
+- search-provider HTTP isolation is bounded separately via `SEARCH_PROVIDER_TIMEOUT_SECONDS` (default 60s, clamped 1..300s, malformed env fails safe to default). This is retrieval-provider reliability control and MUST NOT be conflated with Gonka/LLM semantic timeout policy;
+- two independent BMad Quick Dev review runs through CURRENT AgentField `pr-af.review` both returned `APPROVE` with zero findings: `rev_f9d400eb5d74` (adversarial) and `rev_4798fc8876e1` (edge-cases). Initial repo-path review attempts were discarded because reviewer runtime could not see `/app`; successful reviews used story-only diff/contract input, no GitHub code transport;
+- application-code implementation remains container-first only. No application redeploy/rebuild/restart and no GitHub-code-edit -> deploy loop was used.
 
 ### DoD
 
