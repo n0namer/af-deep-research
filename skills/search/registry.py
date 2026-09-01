@@ -12,15 +12,21 @@ from .jina import JinaSearchProvider
 from .tavily import TavilySearchProvider
 from .firecrawl import FirecrawlSearchProvider
 from .serper import SerperSearchProvider
+from .brave import BraveSearchProvider
+from .perplexity import PerplexitySearchProvider
+from .kagi import KagiSearchProvider
 
 
 # Default priority order for providers
-DEFAULT_PROVIDER_PRIORITY = ["jina", "tavily", "firecrawl", "serper"]
+DEFAULT_PROVIDER_PRIORITY = ["brave", "perplexity", "tavily", "kagi", "jina", "firecrawl", "serper"]
 
 # Registry of all available provider classes
 PROVIDER_CLASSES: Dict[str, Type[SearchProvider]] = {
-    "jina": JinaSearchProvider,
+    "brave": BraveSearchProvider,
+    "perplexity": PerplexitySearchProvider,
     "tavily": TavilySearchProvider,
+    "kagi": KagiSearchProvider,
+    "jina": JinaSearchProvider,
     "firecrawl": FirecrawlSearchProvider,
     "serper": SerperSearchProvider,
 }
