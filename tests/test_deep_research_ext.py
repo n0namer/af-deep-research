@@ -767,7 +767,10 @@ def test_provider_telemetry_records_safe_metadata_only():
     main.app.ai=fake; reset_provider_events()
     try:
         assert asyncio.run(main.ai_with_dynamic_params(system="s",user="u",schema=main.QueryClassification))=="ok"
-        e=provider_events_snapshot(); assert len(e)==1 and e[0]["operation"]=="QueryClassification" and e[0]["status"]=="success"
-        assert not any(k in e[0] for k in ("api_key","prompt","response","error_message"))
+        e=provider_events_snapshot(); assert len(e)==2
+        assert [item["status"] for item in e]==["started","success"]
+        assert all(item["operation"]=="QueryClassification" for item in e)
+        assert e[0]["call_id"] and e[0]["call_id"]==e[1]["call_id"]
+        assert all(not any(k in item for k in ("api_key","prompt","response","error_message")) for item in e)
     finally:
         main.app.ai=old
