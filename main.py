@@ -54,6 +54,8 @@ if ollama_base_url:
 
 ai_config = AIConfig(
     model=os.getenv("DEFAULT_MODEL", "openrouter/deepseek/deepseek-chat-v3.1"),
+    api_key=os.getenv("OPENAI_API_KEY") or None,
+    api_base=ollama_base_url or None,
     temperature=float(os.getenv("TEMPERATURE", "0.6")),
     max_tokens=8192,
     litellm_params=litellm_params,
@@ -63,7 +65,8 @@ app = Agent(
     node_id="meta_deep_research",
     agentfield_server=os.getenv('AGENTFIELD_SERVER', 'http://localhost:8080'),
     version="3.0.0",
-    dev_mode=True,
+    dev_mode=os.getenv("AGENTFIELD_DEV_MODE", "false").strip().lower()
+    in {"1", "true", "yes", "on"},
     callback_url=os.getenv("AGENT_CALLBACK_URL", None),
     api_key=os.getenv("AGENTFIELD_API_KEY", None),
     ai_config=ai_config,
@@ -118,12 +121,14 @@ async def search_web_for_content(query: str) -> List[Dict]:
 async def ai_with_dynamic_params(
     *args, model: Optional[str] = None, api_key: Optional[str] = None, **kwargs
 ) -> Any:
-    """A wrapper for app.ai calls to allow dynamic model and API key overrides."""
+    """Preserve the configured API base when applying dynamic model/key overrides."""
     dynamic_params = {}
     if model:
         dynamic_params["model"] = model
     if api_key:
         dynamic_params["api_key"] = api_key
+    if (model or api_key) and litellm_params.get("api_base"):
+        dynamic_params["api_base"] = litellm_params["api_base"]
 
     merged_kwargs = {**kwargs, **dynamic_params}
     return await app.ai(*args, **merged_kwargs)
