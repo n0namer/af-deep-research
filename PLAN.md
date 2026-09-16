@@ -108,6 +108,22 @@ A release handoff is ready only when:
 - runtime/config assumptions are recorded;
 - required container-only changes = NONE.
 
+## CURRENT source/runtime evidence — 2026-09-16
+
+SourceLoop/source-delivery state is now reconciled and verified independently from product semantic acceptance:
+
+- official upstream `Agent-Field/af-deep-research:main` remains `c07a5847b06dc516fb2ea73956f2faeaa3d2f5f5`; this commit was already an ancestor of the fork integration history, so there was no missing upstream delta to merge on 2026-09-16;
+- the previously preserved permanent-DEV generation (`/app` base `2cb0814d...`) had a durable recovery chain at `runtime-capture/af-deep-research/2cb0814deda4@d0601c939497...`; that full captured runtime generation was conflict-free merged on top of the then-current fork `dev@d1a46015...`;
+- canonical fork integration source is now `n0namer/af-deep-research:dev@936d4b22dfa7171dd24cb6c764e3939baf4d82b1`; its two parents are prior `dev@d1a46015...` and captured runtime head `d0601c93...`, preserving both SoT/ADR history and captured application/runtime code;
+- exact candidate `python -m compileall -q .` PASS before promotion. A fresh full focused pytest rerun did not yield a verdict because Coding Station repeatedly lost execution readback; treat that rerun as `EVIDENCE_MISSING`, not PASS/FAIL. Full semantic/product acceptance remains intentionally deferred to the Lane-A test session;
+- the permanent Deep Research service is running healthy from deployment `n0namer/universal-solver@4b4ffb3f4436a2c508515136e725e0592cfa3ac5`; `/app/.git/HEAD` and `/app/.source-commit` both read exactly `936d4b22...`;
+- Deep Research is now a first-class SourceLoop target (`agentfield-dev-deep-research`, revision 2): `/app`, `live_patch`, `canary_file`, `reload`, `pytest_q`, writeback `n0namer/af-deep-research:dev`, configured-SHA base resolver. The canonical target owner is `n0namer/vps-terminal:main/config/targets.json` commit `93ffdf30...`;
+- ephemeral SourceLoop proof `vtchg_7898e81d7383452ba91664eee05b007c` recorded immutable provenance `repository=n0namer/af-deep-research`, `base_branch=dev`, `base_commit=936d4b22...`, with base identity read from `/app/.source-commit`; the canary file was deleted after readback;
+- runtime-capture watchdog is healthy after changing capture commit construction to an isolated temporary `GIT_INDEX_FILE`, so capture bookkeeping no longer mutates/locks the shared live Git index. Current watchdog state reports Deep Research `CLEAN` with `runtime_head=current_dev_sha=source_marker=936d4b22...`;
+- the temporary replay ref `tmp/deep-source-sync-20260916` and the superseded transport ref `runtime-capture/af-deep-research/2cb0814deda4` were deleted only after proving `dev@936d4b22...` directly retains captured head `d0601c93...` as a parent. No permanent branch-per-commit residue was introduced by this cutover;
+- one capture-gap incident was discovered during cutover: late untracked `tests/test_search_federation.py` was not present in durable capture `d0601c93...` and was removed by `git clean`. Its content was not reconstructed or invented. The deployment contract now archives all untracked paths to `/e2e/pre-cutover-deep-untracked.tar` before future destructive clean/reset operations, in addition to the tracked binary diff;
+- product semantic acceptance is NOT implied by the SourceLoop/source-delivery completion above. Continue the product ladder (A1-A6 and provider/reliability work) in the separate Lane-A testing session.
+
 ## CURRENT evidence — 2026-08-31
 
 Permanent DEV source remains the active Lane A workspace and is intentionally ahead of durable Git while semantic acceptance is still in progress. The current `deep-research` service is now **running and healthy** on the preserved `/app` source volume; production remains untouched. Historical recovery bullets below describe how this state was reached and must not be read as the current process state.
