@@ -6,7 +6,7 @@ Provides a unified interface for all search providers with shared data models.
 
 import os
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,10 @@ class SearchResult(BaseModel):
     content: str = Field(description="Result content/snippet")
     description: Optional[str] = Field(None, description="Result description")
     published_time: Optional[datetime] = Field(None, description="Publication time")
+    canonical_url: Optional[str] = Field(None, description="Canonical URL used for cross-provider deduplication")
+    retrieval_providers: List[str] = Field(default_factory=list, description="Search providers that retrieved this source")
+    provider_ranks: Dict[str, int] = Field(default_factory=dict, description="Per-provider one-based ranks")
+    rrf_score: Optional[float] = Field(None, description="Reciprocal-rank-fusion score when fused")
 
     class Config:
         populate_by_name = True
@@ -29,6 +33,8 @@ class SearchResponse(BaseModel):
     total_results: int = Field(0, description="Total number of results")
     query_used: str = Field("", description="Query that was executed")
     provider: str = Field("", description="Provider that executed the search")
+    providers_used: List[str] = Field(default_factory=list, description="Providers contributing successful results")
+    provider_errors: Dict[str, str] = Field(default_factory=dict, description="Safe provider error classes only")
 
     class Config:
         populate_by_name = True

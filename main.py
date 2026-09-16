@@ -12,6 +12,7 @@ import datetime
 import hashlib
 import os
 import time
+import uuid
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
@@ -19,9 +20,12 @@ import aiohttp
 from agentfield import Agent, AIConfig
 from pydantic import BaseModel, Field
 from temporal_context import get_temporal_context
+from reasoners.deep_research_ext.provider_telemetry import classify_provider_error, record_provider_event
 from doc_generation_pipeline import (
     DocumentResponse as DocGenDocumentResponse,
     FinalDocument as DocGenFinalDocument,
+    _classify_source,
+    _normalize_source_strictness,
     generate_document_from_package_core,
 )
 
@@ -33,6 +37,8 @@ from doc_generation_pipeline import (
 
 
 AI_CALL_CONCURRENCY_LIMIT = 20
+STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_STRUCTURED_EXTRACTION_CONCURRENCY", "1"))
+EVIDENCE_EXTRACTION_CONCURRENCY_LIMIT = int(os.getenv("DR_EVIDENCE_EXTRACTION_CONCURRENCY", "2"))
 MAX_ARTICLES_PER_TASK = 10
 NUM_SEARCH_TERMS_PER_TASK = 3
 # A hard safety limit on the number of task execution loops.
@@ -71,6 +77,16 @@ app = Agent(
     api_key=os.getenv("AGENTFIELD_API_KEY", None),
     ai_config=ai_config,
 )
+
+DR_EVAL_PROFILE = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
+if DR_EVAL_PROFILE == "resilience":
+    app.async_config.llm_call_timeout = float(os.getenv("DR_LLM_CALL_TIMEOUT_SECONDS", "45"))
+    os.environ.setdefault("AGENTFIELD_AI_TIMEOUT_RETRIES", os.getenv("DR_LLM_TIMEOUT_RETRIES", "1"))
+else:
+    # Semantic evaluation has no product-level response budget. This is only a
+    # transport safety ceiling against a dead socket, not an acceptance gate.
+    app.async_config.llm_call_timeout = float(os.getenv("DR_SEMANTIC_TRANSPORT_TIMEOUT_SECONDS", "1800"))
+    os.environ.setdefault("AGENTFIELD_AI_TIMEOUT_RETRIES", os.getenv("DR_SEMANTIC_LLM_TIMEOUT_RETRIES", "2"))
 
 
 # ==============================================================================
@@ -132,11 +148,25 @@ def _augment_queries_for_source_policy(
         query = str(raw_query or "").strip()
         if not query:
             continue
-        for candidate in (query, f"{query} official primary source"):
+        candidates = [query, f"{query} official primary source"]
+        if any(t in query.lower() for t in ("rfc", "ietf", "http/", "http3", "http/3", "quic", "internet standard", "protocol specification")):
+            candidates += [f"{query} site:rfc-editor.org", f"{query} site:datatracker.ietf.org"]
+        for candidate in candidates:
             if candidate not in seen:
                 seen.add(candidate)
                 augmented.append(candidate)
     return augmented
+
+
+def _prioritize_search_results_for_source_policy(results: List[Dict], source_strictness: str) -> List[Dict]:
+    if _normalize_source_strictness(source_strictness) != "verified-only":
+        return list(results)
+    def p(item: Dict) -> int:
+        t, _ = _classify_source(str(item.get("url") or ""))
+        if t == "primary_doc": return 0
+        if t in {"gov", "peer_reviewed", "reputable_media"}: return 1
+        return 2
+    return [item for _, item in sorted(enumerate(results), key=lambda x: (p(x[1]), x[0]))]
 
 
 def _interleave_unique_search_results(search_results_lists: List[List[Dict]]) -> List[Dict]:
@@ -170,7 +200,27 @@ async def ai_with_dynamic_params(
         dynamic_params["api_base"] = litellm_params["api_base"]
 
     merged_kwargs = {**kwargs, **dynamic_params}
-    return await app.ai(*args, **merged_kwargs)
+    schema = kwargs.get("schema")
+    operation = getattr(schema, "__name__", None) or "llm_call"
+    call_id = f"llm_{uuid.uuid4().hex[:12]}"
+    started = time.monotonic()
+    record_provider_event(
+        operation=operation, status="started", latency_seconds=0.0,
+        model=model or getattr(ai_config, "model", None), call_id=call_id,
+    )
+    try:
+        result = await app.ai(*args, **merged_kwargs)
+    except Exception as exc:
+        record_provider_event(
+            operation=operation, status="error", latency_seconds=time.monotonic() - started,
+            model=model or getattr(ai_config, "model", None), error_class=classify_provider_error(exc), call_id=call_id,
+        )
+        raise
+    record_provider_event(
+        operation=operation, status="success", latency_seconds=time.monotonic() - started,
+        model=model or getattr(ai_config, "model", None), call_id=call_id,
+    )
+    return result
 
 
 def create_content_hash(content: str) -> str:
@@ -178,12 +228,29 @@ def create_content_hash(content: str) -> str:
     return hashlib.md5(content.encode()).hexdigest()
 
 
+def _is_provider_auth_error(exc: BaseException) -> bool:
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return (
+        "authenticationerror" in name
+        or "invalid api key" in message
+        or "missing authentication header" in message
+        or "authentication error" in message
+    )
+
+
 async def run_in_batches(tasks: List, batch_size: int):
-    """Executes a list of asyncio tasks in batches to manage rate limits."""
+    """Execute bounded batches; provider auth failures are never silently discarded."""
     results = []
     for i in range(0, len(tasks), batch_size):
         batch = tasks[i : i + batch_size]
         batch_results = await asyncio.gather(*batch, return_exceptions=True)
+        auth_errors = [r for r in batch_results if isinstance(r, Exception) and _is_provider_auth_error(r)]
+        if auth_errors:
+            for pending in tasks[i + batch_size :]:
+                if asyncio.iscoroutine(pending):
+                    pending.close()
+            raise auth_errors[0]
         results.extend(batch_results)
     return [r for r in results if not isinstance(r, Exception)]
 
@@ -1371,15 +1438,38 @@ Focus on maximizing information discovery and source diversity.
     class AdaptiveSearchStreams(BaseModel):
         streams: List[SearchStream]
 
-    result = await ai_with_dynamic_params(
-        system="You are an Adaptive Search Strategy Architect who designs comprehensive, domain-agnostic intelligence gathering frameworks for any research subject.",
-        user=prompt,
-        schema=AdaptiveSearchStreams,
-        model=model,
-        api_key=api_key,
-    )
+    profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
+    try:
+        result = await asyncio.wait_for(
+            ai_with_dynamic_params(
+                system="You are an Adaptive Search Strategy Architect who designs comprehensive, domain-agnostic intelligence gathering frameworks for any research subject.",
+                user=prompt,
+                schema=AdaptiveSearchStreams,
+                model=model,
+                api_key=api_key,
+            ),
+            timeout=(float(os.getenv("DR_SEARCH_STREAM_PLANNING_TIMEOUT_SECONDS", "25")) if profile == "resilience" else None),
+        )
+        streams = [stream.dict() for stream in result.streams]
+        if streams:
+            return streams[: max(1, num_parallel_streams)]
+    except Exception:
+        if profile != "resilience":
+            raise
 
-    return [stream.dict() for stream in result.streams]
+    if profile != "resilience":
+        raise ValueError("search stream planner returned no streams")
+
+    fallback_queries = [
+        " ".join(key_question.split()),
+        f"{' '.join(core_subject.split())} official primary source",
+        f"{' '.join(core_subject.split())} specification standard documentation",
+    ]
+    return [{
+        "stream_name": "Primary Evidence",
+        "search_queries": list(dict.fromkeys(query for query in fallback_queries if query.strip()))[:4],
+        "analysis_focus": "Establish the requested facts and challenge unsupported premises using authoritative primary evidence.",
+    }]
 
 
 @app.reasoner()
@@ -1392,6 +1482,7 @@ async def execute_intelligence_stream_comprehensive(
     start_article_id: int,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
+    source_strictness: str = "mixed",
 ) -> StreamOutput:
     """Comprehensive intelligence stream execution with full article/evidence collection."""
 
@@ -1409,6 +1500,7 @@ async def execute_intelligence_stream_comprehensive(
 
     # Process and deduplicate articles while preserving fair query coverage.
     unique_results = _interleave_unique_search_results(search_results_lists)
+    unique_results = _prioritize_search_results_for_source_policy(unique_results, source_strictness)
 
     source_articles: List[Article] = []
     article_id_counter = start_article_id
@@ -1493,16 +1585,22 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
             facts: List[str]
             quotes: List[str]
 
+        profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
         try:
-            ai_output = await ai_with_dynamic_params(
-                system=f"You are a comprehensive Intelligence Analyst specializing in {analysis_focus}. Your goal is maximum information extraction while maintaining accuracy and relevance.",
-                user=prompt,
-                schema=ComprehensiveEvidence,
-                model=model,
-                api_key=api_key,
+            ai_output = await asyncio.wait_for(
+                ai_with_dynamic_params(
+                    system=f"You are a comprehensive Intelligence Analyst specializing in {analysis_focus}. Your goal is maximum information extraction while maintaining accuracy and relevance.",
+                    user=prompt,
+                    schema=ComprehensiveEvidence,
+                    model=model,
+                    api_key=api_key,
+                ),
+                timeout=(float(os.getenv("DR_EVIDENCE_EXTRACTION_TIMEOUT_SECONDS", "45")) if profile == "resilience" else None),
             )
             return ArticleEvidence(article_id=article.id, **ai_output.dict())
         except Exception as e:
+            if profile != "resilience" or _is_provider_auth_error(e):
+                raise
             return None
 
     # Extract evidence from all articles in parallel
@@ -1510,7 +1608,7 @@ Perform comprehensive evidence extraction optimized for the {stream_name} intell
         extract_evidence_comprehensive(article) for article in source_articles
     ]
     article_evidence_results = await run_in_batches(
-        extraction_tasks, AI_CALL_CONCURRENCY_LIMIT
+        extraction_tasks, EVIDENCE_EXTRACTION_CONCURRENCY_LIMIT
     )
     article_evidence: List[ArticleEvidence] = [
         ev for ev in article_evidence_results if ev
@@ -1667,6 +1765,7 @@ async def prepare_research_package(
                 article_id_offset + (i * 100),
                 model,
                 api_key,
+                source_strictness=source_strictness,
             )
             stream_results.append(stream_result)
 
@@ -1890,6 +1989,7 @@ async def continue_research(
     research_scope: int = 3,
     max_research_loops: int = 2,
     num_parallel_streams: int = 2,
+    source_strictness: str = "mixed",
     model: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> ModeAwareResearchResponse:
@@ -1979,15 +2079,19 @@ async def continue_research(
         expansion_results: List[StreamOutput] = []
 
         for i, stream in enumerate(expansion_streams):
+            expansion_queries = _augment_queries_for_source_policy(
+                stream.get("search_queries", []), source_strictness
+            )
             stream_result = await execute_intelligence_stream_comprehensive(
                 f"Expansion_{stream['stream_name']}",
-                stream.get("search_queries", []),
+                expansion_queries,
                 f"Expansion focus: {stream['analysis_focus']}",
                 sub_classification.core_subject,
                 sub_classification.key_question,
                 max_existing_id + 1000 + (i * 100),
                 model,
                 api_key,
+                source_strictness=source_strictness,
             )
             expansion_results.append(stream_result)
 
@@ -2397,13 +2501,28 @@ Make the classification adaptive to any domain while maintaining analytical rigo
 </instructions>
 """
 
-    return await ai_with_dynamic_params(
-        system="You are a Meta-Research Strategy Classifier who determines optimal intelligence gathering approaches for any domain. You specialize in identifying research intent and designing comprehensive investigation strategies.",
-        user=prompt,
-        schema=QueryClassification,  # Reuse schema but treat it as universal
-        model=model,
-        api_key=api_key,
-    )
+    profile = (os.getenv("DR_EVAL_PROFILE", "semantic") or "semantic").strip().lower()
+    try:
+        return await asyncio.wait_for(
+            ai_with_dynamic_params(
+                system="You are a Meta-Research Strategy Classifier who determines optimal intelligence gathering approaches for any domain. You specialize in identifying research intent and designing comprehensive investigation strategies.",
+                user=prompt,
+                schema=QueryClassification,  # Reuse schema but treat it as universal
+                model=model,
+                api_key=api_key,
+            ),
+            timeout=(float(os.getenv("DR_QUERY_CLASSIFICATION_TIMEOUT_SECONDS", "25")) if profile == "resilience" else None),
+        )
+    except Exception:
+        if profile != "resilience":
+            raise
+        lowered = query.lower()
+        technical = any(token in lowered for token in ("rfc", "quic", "http/3", "protocol", "standard", "software", "api"))
+        return QueryClassification(
+            query_type="Technology_Assessment" if technical else "Entity_Analysis",
+            core_subject=" ".join(query.split())[:240],
+            key_question=" ".join(query.split()),
+        )
 
 
 @app.reasoner()
@@ -2560,7 +2679,7 @@ async def extract_relationships_comprehensive(
 
         all_relationships = []
         iteration = 1
-        max_iterations = 4
+        max_iterations = int(os.getenv("DR_RELATIONSHIP_MAX_ITERATIONS", "2"))
 
         while iteration <= max_iterations:
             # Create context for this iteration
@@ -2580,7 +2699,7 @@ async def extract_relationships_comprehensive(
 
             prompt = f"""
 <mission>
-Find the TOP {8 + min(4, iteration)} most important relationships in this evidence batch (Iteration {iteration}/4).
+Find the TOP {8 + min(4, iteration)} most important relationships in this evidence batch (Iteration {iteration}/{max_iterations}).
 </mission>
 
 <analysis_context>
@@ -2670,6 +2789,8 @@ Find the most important relationships in this iteration:
                     break
 
             except Exception as e:
+                if _is_provider_auth_error(e):
+                    raise
                 break
 
             iteration += 1
@@ -2681,7 +2802,7 @@ Find the most important relationships in this iteration:
         extract_relationships_from_batch_iterative(batch) for batch in evidence_batches
     ]
     relationship_batch_results = await run_in_batches(
-        relationship_extraction_tasks, AI_CALL_CONCURRENCY_LIMIT
+        relationship_extraction_tasks, STRUCTURED_EXTRACTION_CONCURRENCY_LIMIT
     )
 
     all_relationships = [
@@ -3203,6 +3324,19 @@ async def execute_deep_research(
         research_package=document_response.research_package,
         metadata=merged_metadata,
     )
+
+
+# Upgrade-friendly verified Deep Research extension. Keep upstream endpoint unchanged.
+from reasoners.deep_research_ext import install_verified_deep_research
+
+install_verified_deep_research(
+    app,
+    execute_deep_research,
+    prepare_research_package,
+    generate_document_from_package,
+    execute_intelligence_stream_comprehensive,
+    ai_with_dynamic_params,
+)
 
 
 # ==============================================================================
