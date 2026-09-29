@@ -385,3 +385,9 @@ This is an early preview. We're actively developing and want feedback. File issu
 <p align="center">
   <sub>Built by <a href="https://agentfield.ai">AgentField</a> · <a href="https://github.com/Agent-Field/af-deep-research/blob/main/LICENSE">Apache 2.0</a> · <a href="https://github.com/Agent-Field">See what else we're building →</a></sub>
 </p>
+
+<!-- shared-ruflo-factory-readme:start -->
+## AI development workflow
+
+Fresh AI sessions should start with the [Ruflo Factory Operator skill](https://github.com/n0namer/BMAD-MNNZ/blob/main/.agents/skills/ruflo-factory-operator/SKILL.md). On A55/shared Factory hosts, also read D:\Users\NIKITA\Documents\DEV\ruflo\docs\RUFLO_FACTORY_OPERATOR.md and D:\Users\NIKITA\Documents\DEV\ruflo\docs\AI_FACTORY_BOOTSTRAP.md. The shared Factory defines the planning/orchestration/readiness/acceptance workflow; this repository's AGENTS/BMad/Git/tests/runtime evidence remains authoritative for project facts and constraints.
+<!-- shared-ruflo-factory-readme:end -->
