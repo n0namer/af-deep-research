@@ -73,25 +73,41 @@ def _normalize_source_strictness(value: str) -> str:
 
 
 def _classify_source(url: str) -> tuple[str, float]:
-    domain = ""
-    if url:
-        parts = url.split("/")
-        if len(parts) > 2:
-            domain = parts[2].split(":", 1)[0].lower().removeprefix("www.")
+    """Identify source provenance from the URL hostname, never from URL substrings.
 
-    if (
-        domain == "rfc-editor.org"
-        or domain == "ietf.org"
-        or domain.endswith(".ietf.org")
-        or domain == "w3.org"
-        or domain.endswith(".w3.org")
-    ):
+    Primary provenance means the website is official; it does NOT assert that
+    a particular extracted statement is supported by its contents.
+    """
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(str(url or "").strip())
+        if parts.scheme.lower() not in {"https", "http"}:
+            return "blog", 0.4
+        domain = (parts.hostname or "").lower().removeprefix("www.")
+    except (TypeError, ValueError):
+        return "blog", 0.4
+
+    if not domain:
+        return "blog", 0.4
+
+    def in_domain(official: str) -> bool:
+        return domain == official or domain.endswith("." + official)
+
+    # Specific institutional primary documents. A site being official does
+    # not replace claim-to-evidence adjudication or the verified coverage gate.
+    official_primary = (
+        "rfc-editor.org", "ietf.org", "w3.org",
+        "who.int", "eur-lex.europa.eu", "ipcc.ch",
+        "peps.python.org", "iau.org",
+    )
+    if any(in_domain(item) for item in official_primary):
         return "primary_doc", 1.0
-    if domain.endswith(".gov") or ".gov." in domain:
+    if domain.endswith(".gov") or in_domain("gov.uk"):
         return "gov", 0.95
-    if domain == "doi.org" or domain.endswith(".ncbi.nlm.nih.gov"):
+    if in_domain("doi.org") or in_domain("ncbi.nlm.nih.gov"):
         return "peer_reviewed", 0.95
-    if "reuters" in domain or "apnews" in domain:
+    if any(in_domain(item) for item in ("reuters.com", "apnews.com", "ap.org")):
         return "reputable_media", 0.8
     return "blog", 0.4
 
