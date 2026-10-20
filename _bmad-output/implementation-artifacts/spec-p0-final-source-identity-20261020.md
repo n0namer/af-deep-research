@@ -47,3 +47,10 @@ AIAssessment, source notes, and final_verifier; no additional orchestration.
 
 Do not claim independent review, runtime deployment, native multi-source E2E,
 or CrewSync SERVER_DONE on the basis of these local tests.
+
+## QA update 2026-10-20
+- Clean worktree HEAD 8cd4490515f7321126cd845fe3f4c301ba2b56ff.
+- Fixed stale test-only source identity fixtures and nonportable /app/main.py reference.
+- Exact clean SHA regression: 117 passed, pytest exit 0.
+- Integrated live source overlay: 105 passed, 8 skipped, one legacy test deselected.
+- Independent semantic reviewer, live multi-source E2E, and server terminal acceptance are still pending.

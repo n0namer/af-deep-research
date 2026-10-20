@@ -1,11 +1,14 @@
 generated: 2026-10-20
 project: af-deep-research
 development_status:
-  p0-01-reconcile-current-state: in-progress
+  p0-01-reconcile-current-state: in-review
   p0-02-sources-and-search: in-review
-  p0-03-fact-citation-grounding: in-progress
+  p0-03-fact-citation-grounding: in-review
   p0-04-strict-evidence-publication: backlog
   p0-05-agentfield-multisource-e2e: backlog
   p0-06-restart-and-replay: backlog
   p0-07-independent-quality-qa: backlog
   p0-08-crewsync-reducer: backlog
+
+# CrewSync P0 integration key: af-deep-research:p0-full-regression-e2e-quality-benchmark-20261019
+# Exact QA source SHA: 8cd4490515f7321126cd845fe3f4c301ba2b56ff
