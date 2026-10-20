@@ -45,3 +45,23 @@ shared development workspace; do not build a parallel verifier.
 Reconcile this strict source guard against the separately owned dirty dev
 `verified_pipeline.py` and exact QA branch, then perform one strict native E2E.
 Avoid copying unrelated untracked owner changes.
+
+
+## Clean exact-SHA QA rerun
+
+- Detached read-only validation worktree: `D:/Temp/afdr-p0-strict-independent-qa-20261020`.
+- Evaluated source revision: `d854c650bf15980e1bcf1b22152937c4d4b7e584`.
+- Verified canonical checkout source SHA256:
+  `5C241D442E42D12E025623AD5BA15FFC4A43798F8EE62B6AA0A8BCEF9B8F6E34`.
+- Full combined native test command with
+  `test_p0_source_authority_classifier_20261020.py`,
+  `test_p0_final_assessment_source_identity_20261020.py`,
+  `test_p0_strict_source_owned_publication_20261020.py`,
+  `test_deep_research_ext.py`, `test_agent.py`, `test_research_run.py`,
+  and `test_evaluation_suite.py`.
+- Result: **121 passed, exit 0**; warnings from an existing invalid escape
+  sequence in `doc_generation_pipeline.py` remain non-blocking.
+- Receipt: `D:/Temp/afdr-p0-strict-independent-qa-20261020/independent-qa-20261020.log`.
+- This is a separate clean-worktree test run, not a distinct human/model
+  independent semantic review; final integrated SHA and live Native E2E remain
+  prerequisites for authoritative acceptance.
