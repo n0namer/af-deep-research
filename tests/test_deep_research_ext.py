@@ -146,7 +146,7 @@ def test_verification_bridge_promotes_only_source_entailed_verified_claims():
     async def fake_adjudicator(batch, strictness, **kwargs):
         assert strictness == "verified-only"
         return AIAssessmentList(assessments=[
-            AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
+            AIAssessment(fact_id=batch[0].fact_id, source_id=batch[0].source_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
             AIAssessment(fact_id=batch[1].fact_id, is_allowed=True, is_source_supported=False, is_verified=True, disagreement_score=0.0),
         ])
 
@@ -188,7 +188,7 @@ def test_continue_research_preserves_strictness_contract_and_child_policy():
     import ast
     from pathlib import Path
 
-    tree = ast.parse(Path('/app/main.py').read_text())
+    tree = ast.parse((Path(__file__).resolve().parents[1] / 'main.py').read_text(encoding='utf-8'))
     fn = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == 'continue_research')
     arg_names = [arg.arg for arg in fn.args.args]
     assert 'source_strictness' in arg_names
@@ -452,7 +452,7 @@ def test_final_verifier_rejects_uncited_material_claim():
             DraftClaim(claim_id="D2", text="Google invented HTTP/3.", citation_ids=[]),
         ])
     async def fake_adjudicator(batch, strictness, **kwargs):
-        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0)])
+        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, source_id=batch[0].source_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0)])
     state = asyncio.run(verify_final_document(document_package=document, research_package=research, source_strictness="strict", ai_call=lambda **kwargs: None, claim_extractor=fake_extract, adjudicator=fake_adjudicator))
     assert state.material_claim_count == 2
     assert state.supported_claim_count == 1
@@ -472,7 +472,7 @@ def test_final_verifier_accepts_when_every_material_claim_is_cited_and_entailed(
     async def fake_extract(**kwargs):
         return DraftClaimList(claims=[DraftClaim(claim_id="D1", text="RFC 9000 specifies QUIC.", citation_ids=[1])])
     async def fake_adjudicator(batch, strictness, **kwargs):
-        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0)])
+        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, source_id=batch[0].source_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0)])
     state = asyncio.run(verify_final_document(document_package=document, research_package=research, source_strictness="strict", ai_call=lambda **kwargs: None, claim_extractor=fake_extract, adjudicator=fake_adjudicator))
     assert state.passed is True
     assert state.supported_claim_count == 1
@@ -512,6 +512,7 @@ def test_final_verifier_bounds_concurrency_and_preserves_claim_order_on_failures
                 return AIAssessmentList(assessments=[
                     AIAssessment(
                         fact_id=batch[0].fact_id,
+                        source_id=batch[0].source_id,
                         is_allowed=True,
                         is_source_supported=True,
                         is_verified=True,
