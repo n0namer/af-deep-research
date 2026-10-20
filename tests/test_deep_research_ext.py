@@ -301,7 +301,7 @@ def test_requirement_mapping_bounds_concurrency_and_fails_closed():
 
 def test_requirement_level_coverage_does_not_overcount_verified_claims():
     from reasoners.deep_research_ext.coverage import assess_candidate_coverage
-    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, EvidenceLedger, EvidenceSource
     from reasoners.deep_research_ext.models import ResearchRequirement
 
     contract = build_answer_contract("multi requirement")
@@ -311,7 +311,7 @@ def test_requirement_level_coverage_does_not_overcount_verified_claims():
         ResearchRequirement(requirement_id="R3", question="C"),
     ]})
     ledger = EvidenceLedger(
-        sources=[],
+        sources=[EvidenceSource(source_id=1, title="RFC", url="https://rfc-editor.org/info/rfc9114", content_hash="a"*64, source_class="primary_doc", provenance_group="rfc-editor.org", retrieved_at="now")],
         created_at="now",
         claims=[
             EvidenceClaim(claim_id="C1", text="supports A", source_id=1, requirement_ids=["R1"], status="verified", support_state="source_entailed"),

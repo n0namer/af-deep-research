@@ -22,10 +22,11 @@ class CoverageState(BaseModel):
 
 def assess_candidate_coverage(contract: AnswerContract, ledger: EvidenceLedger) -> CoverageState:
     states: List[RequirementCoverage] = []
+    source_ids = {source.source_id for source in ledger.sources}
     for requirement in contract.requirements:
         claims = [c for c in ledger.claims if requirement.requirement_id in c.requirement_ids]
-        groups = {c.source_independence_group for c in claims if c.source_independence_group}
-        verified = [c for c in claims if c.status == "verified" and c.support_state == "source_entailed"]
+        groups = {c.source_independence_group for c in claims if c.source_independence_group and c.source_id in source_ids}
+        verified = [c for c in claims if c.status == "verified" and c.support_state == "source_entailed" and c.source_id in source_ids]
         status: CoverageStatus
         if verified:
             status = "verified"

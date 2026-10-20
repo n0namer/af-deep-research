@@ -65,3 +65,27 @@ Avoid copying unrelated untracked owner changes.
 - This is a separate clean-worktree test run, not a distinct human/model
   independent semantic review; final integrated SHA and live Native E2E remain
   prerequisites for authoritative acceptance.
+
+## P0 coverage accounting source-ownership follow-up
+
+The requirement-level coverage accountant in
+`reasoners/deep_research_ext/coverage.py` previously marked a claim as
+verified on `status=verified` and `support_state=source_entailed` without
+checking whether its `source_id` appeared in the ledger's saved sources.
+
+- Existing code reused; smallest correction checks membership in the
+  declared source IDs before counting a verified requirement or an
+  independent source group.
+- New `tests/test_p0_coverage_requires_declared_source_20261020.py`
+  checks the legitimate source-10 claim and a foreign-source-999 negative.
+- RED: 1 failed, 1 passed on uncorrected coverage code; a foreign claim
+  incorrectly returned `verified_coverage_ratio=1.0`.
+- GREEN: 2 passed after the minimal source identity fence.
+- One existing test fixture in `tests/test_deep_research_ext.py` was stale:
+  it previously asserted verified coverage while declaring no sources at all.
+  It now declares its actual source, preserving the original positive meaning.
+- Broader affected regression: **123 passed, exit 0**. Receipt:
+  `D:/Temp/afdr-p0-strict-publication-20261020/coverage-regression-20261020.log`.
+- No actual AgentField runtime or other dirty owner file was modified.
+- This is a local verified-accounting fix, not yet integrated live E2E or a
+  server-authoritative CrewSync DONE.
