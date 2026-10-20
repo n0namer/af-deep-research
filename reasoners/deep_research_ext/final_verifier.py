@@ -103,6 +103,16 @@ async def verify_final_document(
                 reason="material_claim_has_no_citation",
             )
 
+        # Citation markers are part of the claim's fact identity. Duplicate
+        # markers must not collapse into one candidate and accidentally pass.
+        if len(set(claim.citation_ids)) != len(claim.citation_ids):
+            return False, UnsupportedDraftClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                citation_ids=claim.citation_ids,
+                reason="duplicate_citation_ids",
+            )
+
         candidates = []
         for citation_id in claim.citation_ids:
             note = source_notes.get(int(citation_id))
@@ -147,6 +157,23 @@ async def verify_final_document(
                 text=claim.text,
                 citation_ids=claim.citation_ids,
                 reason="claim_verification_failed_closed",
+            )
+
+        expected_sources = {candidate.fact_id: candidate.source_id for candidate in candidates}
+        assessment_fact_ids = [item.fact_id for item in result.assessments]
+        if (
+            any(not fact_id or fact_id not in expected_sources for fact_id in assessment_fact_ids)
+            or len(assessment_fact_ids) != len(set(assessment_fact_ids))
+            or any(
+                getattr(item, "source_id", None) != expected_sources.get(item.fact_id)
+                for item in result.assessments
+            )
+        ):
+            return False, UnsupportedDraftClaim(
+                claim_id=claim.claim_id,
+                text=claim.text,
+                citation_ids=claim.citation_ids,
+                reason="cited_evidence_does_not_entail_claim",
             )
 
         if any(item.is_allowed and item.is_source_supported for item in result.assessments):
