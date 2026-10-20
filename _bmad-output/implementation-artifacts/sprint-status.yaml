@@ -4,7 +4,7 @@ development_status:
   p0-01-reconcile-current-state: in-review
   p0-02-sources-and-search: in-review
   p0-03-fact-citation-grounding: in-review
-  p0-04-strict-evidence-publication: backlog
+  p0-04-strict-evidence-publication: in-review
   p0-05-agentfield-multisource-e2e: backlog
   p0-06-restart-and-replay: backlog
   p0-07-independent-quality-qa: backlog
