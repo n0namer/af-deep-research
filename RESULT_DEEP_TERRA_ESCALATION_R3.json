@@ -1,0 +1,72 @@
+{
+  "verdict": "BLOCKED",
+  "goal": "Run one bounded, provenance-verified RFC 9114 Deep Research request locally with gpt-5.6-luna low.",
+  "query": "What does RFC 9114 specify about HTTP/3?",
+  "bounds": {
+    "max_research_loops": 1,
+    "max_gap_rounds": 0,
+    "num_parallel_streams": 1,
+    "source_strictness": "strict",
+    "model": "openai/gpt-5.6-luna",
+    "reasoning_effort": "low"
+  },
+  "product_change": {
+    "file": "reasoners/deep_research_ext/runtime_provider.py",
+    "description": "LLM_BROKER_BASE_URL and LLM_BROKER_API_KEY now override the Windows development default, allowing a launcher-managed in-memory credential to reach the approved local broker without product code reading an auth store.",
+    "endpoint": "http://127.0.0.1:10110/v1",
+    "credential_handling": "The canary launcher read the curated access token only into its own memory and supplied it only in the child environment. No bearer value was printed, written, persisted, or rotated."
+  },
+  "deterministic_validation": {
+    "command": "python -m pytest -q tests/test_runtime_provider.py tests/test_rfc_editor_fallback.py",
+    "result": "14 passed",
+    "covered": [
+      "Windows broker override resolves to Luna/low",
+      "RFC Editor fallback selection and no-fabrication behavior"
+    ]
+  },
+  "model_route_proof": {
+    "canary_endpoint_check": {
+      "request": "GET http://127.0.0.1:10110/v1/models with launcher-managed bearer",
+      "result": "HTTP 200; gpt-5.6-luna was advertised"
+    },
+    "loaded_runtime": {
+      "node_id": "meta_deep_research",
+      "callback": "http://127.0.0.1:40419",
+      "registered_reasoners": 23,
+      "verified_endpoint": "POST /reasoners/execute_verified_deep_research"
+    },
+    "execution": {
+      "run_id": "run_1791234144224_64401333",
+      "execution_id": "exec_1791234144224_a7513a35",
+      "classifier_result": "succeeded after 3379 ms with query classification for RFC 9114 and HTTP/3",
+      "research_result": "one iteration completed; total_sources=0; verified pipeline rejected it"
+    }
+  },
+  "source_path_audit": {
+    "credentialed_provider_status": {
+      "brave": false,
+      "perplexity": false,
+      "tavily": false,
+      "kagi": false,
+      "jina": false,
+      "firecrawl": false,
+      "serper": false,
+      "rfc_editor": true
+    },
+    "primary_source_fallback": {
+      "intended_url": "https://www.rfc-editor.org/rfc/rfc9114.txt",
+      "result": "ClientConnectorDNSError: Cannot connect to host www.rfc-editor.org:443; Timeout while contacting DNS servers",
+      "http_content_received": false
+    },
+    "verified_pipeline_result": "ValueError: No eligible evidence remains for verified ledger adjudication. The response was HTTP 500 rather than a fabricated or unsupported research answer."
+  },
+  "external_blocker": "This process has no configured credentialed search provider and cannot resolve the RFC Editor host. No repository-supported local-source injection surface was found for execute_verified_deep_research. A network-enabled product execution path or legitimate configured search credential is required to obtain RFC 9114 source content and complete semantic verification.",
+  "acceptance": {
+    "actual_source_url_and_content": false,
+    "verified_final_research_result": false,
+    "reason_for_blocked": "Strict provenance correctly prevents acceptance without retrieved source material."
+  },
+  "disposable_evidence": [
+    ".r3-runtime-runs/run_1791234144224_64401333.json"
+  ]
+}
