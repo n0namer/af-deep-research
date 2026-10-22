@@ -1,0 +1,13 @@
+flowchart LR
+    execute["execute_verified_pipeline"]
+    checkpoint["checkpoint_research_run - owner revision sequence"]
+    resume["resume_research_run - terminal and receipt summary"]
+    dto["VerifiedSourceReport - r10"]
+    build["build_grounded_verified_report - separate grounded API"]
+    persist["persist_grounded_verified_report - owner cancellation effect"]
+    replay["replay_verified_source_report - identity and monotonic revision"]
+    store["DurableVerifiedSourceReportStore - RLock and memory"]
+    execute -->|persist phase state| checkpoint
+    build -->|construct grounded DTO| dto
+    persist -->|canonical revision| replay
+    persist -->|save then optional record_effect| store

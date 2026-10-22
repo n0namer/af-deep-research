@@ -1,0 +1,10 @@
+flowchart LR
+    search["search - default provider boundary"]
+    select["select_federated_providers - bounded selection"]
+    execute["search_with_providers - failure isolation"]
+    canonical["canonicalize_url - retrieval identity"]
+    rrf["fuse_search_responses - reciprocal rank fusion"]
+    search -->|resolve default| select
+    select -->|ordered provider set| execute
+    execute -->|fuse successful responses| rrf
+    rrf -->|deduplicate by URL| canonical

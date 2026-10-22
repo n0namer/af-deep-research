@@ -7,6 +7,14 @@ from .models import AnswerContract
 STRICT_VALUES = {"strict", "verified-only", "verified_only"}
 
 
+def has_source_entailed_support(claim, source_ids) -> bool:
+    """Return true only when a claim is source-entailed and names a declared source."""
+    return (
+        claim.source_id in set(source_ids)
+        and claim.support_state == "source_entailed"
+    )
+
+
 def requires_programmatic_abstention(source_strictness: str, coverage: CoverageState) -> bool:
     return (source_strictness or "").strip().lower() in STRICT_VALUES and coverage.verified_coverage_ratio < 1.0
 
@@ -21,6 +29,9 @@ def build_evidence_only_gap_response(
     source_by_id = {source.source_id: source for source in ledger.sources}
     citation_ids = {source.source_id: index for index, source in enumerate(ledger.sources, start=1)}
 
+    def source_entailed(claim):
+        return has_source_entailed_support(claim, source_by_id)
+
     sections: List[DocumentSection] = []
     unresolved: List[str] = []
     for requirement in contract.requirements:
@@ -28,13 +39,13 @@ def build_evidence_only_gap_response(
             claim for claim in ledger.claims
             if requirement.requirement_id in claim.requirement_ids
             and claim.status == "verified"
-            and claim.support_state == "source_entailed"
+            and source_entailed(claim)
         ]
         disputed = [
             claim for claim in ledger.claims
             if requirement.requirement_id in claim.requirement_ids
             and claim.status == "disputed"
-            and claim.support_state == "source_entailed"
+            and source_entailed(claim)
         ]
         lines = []
         for claim in verified:
@@ -47,16 +58,15 @@ def build_evidence_only_gap_response(
                 citation = citation_ids.get(claim.source_id)
                 suffix = f" [{citation}]" if citation else ""
                 lines.append(f"- DISPUTED: {claim.text}{suffix}")
-        if lines:
-            content = "\n".join(lines)
-        else:
+        if not verified:
             unresolved.append(requirement.requirement_id)
-            content = "Insufficient verified evidence for this requirement. The system abstains rather than filling the gap from model memory."
+            lines.append("Insufficient verified evidence for this requirement. The system abstains rather than filling the gap from model memory.")
+        content = "\n".join(lines)
         sections.append(DocumentSection(title=f"{requirement.requirement_id}: {requirement.question}", content=content))
 
     used_source_ids = {
         claim.source_id for claim in ledger.claims
-        if claim.status in {"verified", "disputed"} and claim.support_state == "source_entailed"
+        if claim.status in {"verified", "disputed"} and source_entailed(claim)
     }
     source_notes = [
         SourceNote(
@@ -89,7 +99,7 @@ def build_evidence_only_gap_response(
         contradiction_requirements = sorted({
             requirement_id
             for claim in ledger.claims
-            if claim.status == "disputed" and claim.support_state == "source_entailed"
+            if claim.status == "disputed" and source_entailed(claim)
             for requirement_id in claim.requirement_ids
         })
         extension["contradictions"] = {

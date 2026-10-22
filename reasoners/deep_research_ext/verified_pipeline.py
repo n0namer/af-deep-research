@@ -1,5 +1,359 @@
+import asyncio
+import copy
+import hashlib
+import re
+import threading
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
+
+
+class VerifiedSourceReportError(ValueError):
+    """Raised when a verified-source report cannot be accepted safely."""
+
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+@dataclass(frozen=True)
+class GroundedFact:
+    fact_id: str
+    source_id: str
+    source_sha256: str
+
+    def __post_init__(self):
+        for field_name, value in (("fact_id", self.fact_id), ("source_id", self.source_id)):
+            if not isinstance(value, str) or not value.strip():
+                raise VerifiedSourceReportError(f"{field_name} must be a non-empty string")
+        if not isinstance(self.source_sha256, str) or not _SHA256_RE.fullmatch(self.source_sha256):
+            raise VerifiedSourceReportError("source_sha256 must be a lowercase SHA-256 hex digest")
+
+
+@dataclass(frozen=True)
+class VerifiedSourceReport:
+    report_id: str
+    query: str
+    source_ids: tuple[str, ...]
+    revision: int
+    payload: dict[str, Any]
+    source_revision: str = "legacy"
+    source_owner: str = "legacy"
+    source_file_sha256: str = ""
+    facts: tuple[GroundedFact, ...] = ()
+    abstained_requirement_ids: tuple[str, ...] = ()
+    dto_version: str = "r10"
+
+    def __post_init__(self):
+        if not isinstance(self.report_id, str) or not self.report_id.strip():
+            raise VerifiedSourceReportError("report_id must be a non-empty string")
+        if not isinstance(self.query, str) or not self.query.strip():
+            raise VerifiedSourceReportError("query must be a non-empty string")
+        if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 1:
+            raise VerifiedSourceReportError("revision must be a positive integer")
+        if not self.source_ids or any(not isinstance(item, str) or not item.strip() for item in self.source_ids):
+            raise VerifiedSourceReportError("source_ids must contain non-empty strings")
+        if len(set(self.source_ids)) != len(self.source_ids):
+            raise VerifiedSourceReportError("source_ids must be unique")
+        if not isinstance(self.payload, dict):
+            raise VerifiedSourceReportError("payload must be a mapping")
+        if not isinstance(self.source_revision, str) or not self.source_revision.strip():
+            raise VerifiedSourceReportError("source_revision must be a non-empty string")
+        if not isinstance(self.source_owner, str) or not self.source_owner.strip():
+            raise VerifiedSourceReportError("source_owner must be a non-empty string")
+        if self.source_file_sha256 and not _SHA256_RE.fullmatch(self.source_file_sha256):
+            raise VerifiedSourceReportError("source_file_sha256 must be a lowercase SHA-256 hex digest")
+        if len({fact.fact_id for fact in self.facts}) != len(self.facts):
+            raise VerifiedSourceReportError("facts must have unique fact_id values")
+        if any(fact.source_id not in self.source_ids for fact in self.facts):
+            raise VerifiedSourceReportError("facts must reference declared source_ids")
+        if len(set(self.abstained_requirement_ids)) != len(self.abstained_requirement_ids):
+            raise VerifiedSourceReportError("abstained_requirement_ids must be unique")
+        if self.dto_version != "r10":
+            raise VerifiedSourceReportError("unsupported DTO version")
+
+
+def _clone_report(report):
+    return copy.deepcopy(report)
+
+
+def source_file_sha256(path):
+    """Return the immutable SHA-256 identity of a source file."""
+    digest = hashlib.sha256()
+    try:
+        with Path(path).open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise VerifiedSourceReportError("source file cannot be hashed") from exc
+    return digest.hexdigest()
+
+
+def build_verified_source_report(*, report_id, query, source_ids, revision, payload):
+    """Construct and validate the exact DTO used at the persistence boundary."""
+    if not isinstance(source_ids, (list, tuple)):
+        raise VerifiedSourceReportError("source_ids must be a list or tuple")
+    return VerifiedSourceReport(
+        report_id=report_id,
+        query=query,
+        source_ids=tuple(source_ids),
+        revision=revision,
+        payload=copy.deepcopy(payload) if isinstance(payload, dict) else payload,
+    )
+
+
+def build_grounded_verified_report(*, report_id, query, source_revision, source_owner,
+                                   source_file_sha256, facts, payload,
+                                   abstained_requirement_ids=(), revision=1):
+    """Build the r10 source-bound DTO without invoking an external provider."""
+    if not isinstance(facts, (list, tuple)) or not facts:
+        raise VerifiedSourceReportError("facts must be a non-empty list or tuple")
+    if not isinstance(source_file_sha256, str) or not _SHA256_RE.fullmatch(source_file_sha256):
+        raise VerifiedSourceReportError("source_file_sha256 must be a lowercase SHA-256 hex digest")
+    normalized_facts = []
+    for fact in facts:
+        if isinstance(fact, GroundedFact):
+            normalized_facts.append(fact)
+        elif isinstance(fact, dict):
+            normalized_facts.append(GroundedFact(**fact))
+        else:
+            raise VerifiedSourceReportError("facts must contain GroundedFact values or mappings")
+    normalized_facts = tuple(normalized_facts)
+    source_ids = tuple(dict.fromkeys(fact.source_id for fact in normalized_facts))
+    return VerifiedSourceReport(
+        report_id=report_id,
+        query=query,
+        source_ids=source_ids,
+        revision=revision,
+        payload=copy.deepcopy(payload) if isinstance(payload, dict) else payload,
+        source_revision=source_revision,
+        source_owner=source_owner,
+        source_file_sha256=source_file_sha256,
+        facts=normalized_facts,
+        abstained_requirement_ids=tuple(abstained_requirement_ids),
+    )
+
+
+def replay_verified_source_report(existing, candidate):
+    """Apply a monotonic, idempotent revision without duplicating a terminal effect."""
+    if not isinstance(candidate, VerifiedSourceReport):
+        raise VerifiedSourceReportError("candidate must be a VerifiedSourceReport")
+    if existing is None:
+        return candidate, True
+    if not isinstance(existing, VerifiedSourceReport):
+        raise VerifiedSourceReportError("stored report has an invalid type")
+    existing_identity = (
+        existing.report_id, existing.query, existing.source_ids, existing.source_revision,
+        existing.source_owner, existing.source_file_sha256, existing.facts,
+        existing.abstained_requirement_ids, existing.dto_version,
+    )
+    candidate_identity = (
+        candidate.report_id, candidate.query, candidate.source_ids, candidate.source_revision,
+        candidate.source_owner, candidate.source_file_sha256, candidate.facts,
+        candidate.abstained_requirement_ids, candidate.dto_version,
+    )
+    if existing.source_owner != candidate.source_owner:
+        raise VerifiedSourceReportError("report owner does not match stored report owner")
+    if existing_identity != candidate_identity:
+        raise VerifiedSourceReportError("report identity does not match stored report")
+    if candidate.revision < existing.revision:
+        return existing, False
+    if candidate.revision == existing.revision:
+        if candidate.payload != existing.payload:
+            raise VerifiedSourceReportError("revision payload conflicts with stored report")
+        return existing, False
+    if candidate.revision != existing.revision + 1:
+        raise VerifiedSourceReportError("report revision must advance by one")
+    return candidate, True
+
+
+def persist_verified_source_report(store, candidate):
+    """Persist once per accepted revision and return the canonical stored DTO."""
+    if not isinstance(candidate, VerifiedSourceReport):
+        raise VerifiedSourceReportError("candidate must be a VerifiedSourceReport")
+    if hasattr(store, "load"):
+        existing = store.load(candidate.report_id)
+    elif hasattr(store, "get"):
+        existing = store.get(candidate.report_id)
+    else:
+        raise VerifiedSourceReportError("store must provide load() or get()")
+    canonical, changed = replay_verified_source_report(existing, candidate)
+    if not changed:
+        return canonical
+    if hasattr(store, "save"):
+        store.save(canonical)
+    elif hasattr(store, "set"):
+        store.set(canonical.report_id, canonical)
+    else:
+        raise VerifiedSourceReportError("store must provide save() or set()")
+    return canonical
+
+
+class DurableVerifiedSourceReportStore:
+    """Small durable-boundary adapter with owner and effect fencing."""
+
+    def __init__(self):
+        self._reports = {}
+        self._effects = set()
+        self._lock = threading.RLock()
+
+    def load(self, report_id):
+        with self._lock:
+            report = self._reports.get(report_id)
+            return _clone_report(report) if report is not None else None
+
+    def save(self, report, *, owner=None, expected_revision=None):
+        with self._lock:
+            existing = self._reports.get(report.report_id)
+            if owner is not None and owner != report.source_owner:
+                raise VerifiedSourceReportError("source owner does not match report owner")
+            if existing is not None and existing.source_owner != report.source_owner:
+                raise VerifiedSourceReportError("source owner does not match stored report")
+            if expected_revision is not None and (existing is None or existing.revision != expected_revision):
+                raise VerifiedSourceReportError("stored report revision is stale")
+            self._reports[report.report_id] = _clone_report(report)
+            return _clone_report(report)
+
+    def record_effect(self, effect_id, *, report_id, owner, revision):
+        if not isinstance(effect_id, str) or not effect_id.strip():
+            raise VerifiedSourceReportError("effect_id must be a non-empty string")
+        with self._lock:
+            report = self._reports.get(report_id)
+            if report is None:
+                raise VerifiedSourceReportError("report must be persisted before recording an effect")
+            if report.source_owner != owner:
+                raise VerifiedSourceReportError("source owner does not match stored report")
+            if report.revision != revision:
+                raise VerifiedSourceReportError("effect revision is stale")
+            if effect_id in self._effects:
+                return False
+            self._effects.add(effect_id)
+            return True
+
+    def effect_count(self):
+        with self._lock:
+            return len(self._effects)
+
+
+def _validate_grounded_document_payload(candidate):
+    """Reject unsupported or foreign evidence before persisting a grounded document."""
+    payload = candidate.payload
+    # Older, still supported r10 receipts contain document+claims instead of
+    # the later document+citations+evidence envelope. Normalize both to one
+    # exact owned-fact validation path, without trusting caller-supplied IDs.
+    if "document" in payload and "claims" in payload and "citations" not in payload and "evidence" not in payload:
+        claims = payload["claims"]
+        if not isinstance(claims, list) or not claims:
+            raise VerifiedSourceReportError("document requires owned claims")
+        derived_evidence = []
+        derived_citations = []
+        for claim in claims:
+            if not isinstance(claim, dict) or not isinstance(claim.get("text"), str):
+                raise VerifiedSourceReportError("invalid document claim")
+            derived_evidence.append({
+                "fact_id": claim.get("fact_id"),
+                "source_id": claim.get("source_id"),
+                "text": claim["text"],
+                "source_sha256": hashlib.sha256(claim["text"].encode("utf-8")).hexdigest(),
+            })
+            derived_citations.append({"fact_id": claim.get("fact_id"), "source_id": claim.get("source_id")})
+        payload = {**payload, "citations": derived_citations, "evidence": derived_evidence}
+    fields = {"document", "citations", "evidence"}
+    if not {"document", "evidence"}.intersection(payload):
+        return
+    if not fields.issubset(payload):
+        raise VerifiedSourceReportError("document requires citations and evidence")
+    document = payload["document"]
+    citations, evidence = payload["citations"], payload["evidence"]
+    if not isinstance(document, str) or not document.strip():
+        raise VerifiedSourceReportError("invalid document text")
+    if not isinstance(citations, list) or not isinstance(evidence, list) or not citations or not evidence:
+        raise VerifiedSourceReportError("missing document citations or evidence")
+    owned = {(f.fact_id, f.source_id): f.source_sha256 for f in candidate.facts}
+    eligible = {}
+    for item in evidence:
+        if not isinstance(item, dict):
+            raise VerifiedSourceReportError("invalid evidence item")
+        key = (item.get("fact_id"), item.get("source_id"))
+        content = item.get("text")
+        digest = item.get("source_sha256")
+        if key not in owned or not isinstance(content, str) or not content.strip():
+            raise VerifiedSourceReportError("unowned or empty evidence")
+        if digest != owned[key] or hashlib.sha256(content.encode("utf-8")).hexdigest() != digest:
+            raise VerifiedSourceReportError("evidence hash mismatch")
+        if key in eligible:
+            raise VerifiedSourceReportError("duplicate evidence identity")
+        eligible[key] = content
+    cited = set()
+    for citation in citations:
+        if not isinstance(citation, dict):
+            raise VerifiedSourceReportError("invalid citation")
+        key = (citation.get("fact_id"), citation.get("source_id"))
+        if key not in eligible:
+            raise VerifiedSourceReportError("citation references foreign source or fact")
+        cited.add(key)
+    markers = re.findall(r"\[([^\]]+)\]", document)
+    if any(source not in {s for _, s in cited} for source in markers):
+        raise VerifiedSourceReportError("document references foreign source")
+    documented = " ".join(re.sub(r"\[[^\]]+\]", "", document).split())
+    evidence_text = " ".join(" ".join(text.split()) for key, text in eligible.items() if key in cited)
+    if documented != evidence_text:
+        raise VerifiedSourceReportError("document asserts unsupported material")
+
+
+def persist_grounded_verified_report(store, candidate, *, owner, cancellation=None, effect_id=None):
+    """Persist a grounded report exactly once, then optionally fence one terminal effect."""
+    if not isinstance(candidate, VerifiedSourceReport) or not candidate.facts:
+        raise VerifiedSourceReportError("candidate must be a grounded VerifiedSourceReport")
+    if owner != candidate.source_owner:
+        raise VerifiedSourceReportError("source owner does not match report owner")
+    _validate_grounded_document_payload(candidate)
+    _raise_if_cancelled(cancellation)
+    existing = store.load(candidate.report_id)
+    canonical, changed = replay_verified_source_report(existing, candidate)
+    if changed:
+        if isinstance(store, DurableVerifiedSourceReportStore):
+            canonical = store.save(canonical, owner=owner, expected_revision=existing.revision if existing else None)
+        elif hasattr(store, "save"):
+            store.save(_clone_report(canonical))
+        else:
+            raise VerifiedSourceReportError("store must provide save()")
+    _raise_if_cancelled(cancellation)
+    effect_applied = None
+    if effect_id is not None:
+        if not isinstance(store, DurableVerifiedSourceReportStore):
+            raise VerifiedSourceReportError("effect fencing requires DurableVerifiedSourceReportStore")
+        effect_applied = store.record_effect(
+            effect_id, report_id=canonical.report_id, owner=owner, revision=canonical.revision,
+        )
+    return canonical, changed, effect_applied
+
+
+def resume_grounded_verified_report(store, report_id, *, owner, source_file_sha256):
+    """Reload a report only when owner and immutable source identity still match."""
+    report = store.load(report_id)
+    if report is None:
+        raise VerifiedSourceReportError("grounded report was not found")
+    if report.source_owner != owner:
+        raise VerifiedSourceReportError("source owner does not match stored report")
+    if report.source_file_sha256 != source_file_sha256:
+        raise VerifiedSourceReportError("source file SHA does not match stored report")
+    return report
+
+
+def _is_cancelled(cancellation):
+    if cancellation is None:
+        return False
+    if callable(cancellation):
+        return bool(cancellation())
+    if hasattr(cancellation, "is_set"):
+        return bool(cancellation.is_set())
+    return bool(cancellation)
+
+
+def _raise_if_cancelled(cancellation):
+    if _is_cancelled(cancellation):
+        raise asyncio.CancelledError("verified source report cancelled")
 
 from .coverage import assess_candidate_coverage
 from .evidence_ledger import build_evidence_ledger
@@ -89,10 +443,16 @@ async def execute_verified_pipeline(
     ai_call=None,
     run_store=None,
     research_run=None,
+    cancellation=None,
+    report_store=None,
+    report_id=None,
+    report_revision=1,
 ) -> Any:
     started = time.time()
+    _raise_if_cancelled(cancellation)
     if run_store is None or research_run is None:
         run_store, research_run = begin_research_run(upstream_kwargs["query"])
+    _raise_if_cancelled(cancellation)
     cached_package = research_run.payload.get("research_package") if research_run.stage != "started" else None
     if isinstance(cached_package, dict):
         package = dict(cached_package)
@@ -118,6 +478,7 @@ async def execute_verified_pipeline(
             run_store, research_run, stage="research_package_ready", source_ids=source_ids,
             payload={"research_package": package, "research_phase_metadata": research_phase_metadata, "provider_events": provider_events_snapshot()},
         )
+    _raise_if_cancelled(cancellation)
     ledger = build_evidence_ledger(package, [])
     ledger = await map_claims_to_requirements(
         ledger=ledger,
@@ -126,6 +487,7 @@ async def execute_verified_pipeline(
         model=upstream_kwargs.get("model"),
         api_key=upstream_kwargs.get("api_key"),
     )
+    _raise_if_cancelled(cancellation)
     ledger = await verify_ledger_claims(
         ledger=ledger,
         research_package=package,
@@ -212,6 +574,7 @@ async def execute_verified_pipeline(
             contract=trace.answer_contract, ledger=ledger, coverage=coverage, metadata=base_metadata,
         )
 
+    _raise_if_cancelled(cancellation)
     document = await generate_document_from_package(
         package=package,
         main_query=upstream_kwargs["query"],
@@ -237,8 +600,10 @@ async def execute_verified_pipeline(
     )
     metadata["research_run"] = {"run_id": research_run.run_id, "checkpoint_seq": research_run.checkpoint_seq, "stage": research_run.stage}
 
+    _raise_if_cancelled(cancellation)
     final_verification = None
     if (upstream_kwargs["source_strictness"] or "").strip().lower() in {"strict", "verified-only", "verified_only"}:
+        _raise_if_cancelled(cancellation)
         final_verification = await verify_final_document(
             document_package=document.research_package,
             research_package=package,
@@ -284,6 +649,29 @@ async def execute_verified_pipeline(
                 coverage=coverage,
                 metadata=metadata,
             )
+
+    _raise_if_cancelled(cancellation)
+    if report_store is not None:
+        if not report_id:
+            raise VerifiedSourceReportError("report_id is required when report_store is provided")
+        source_ids = tuple(str(item.get("id")) for item in package.get("source_articles", []) if item.get("id") is not None)
+        report = build_verified_source_report(
+            report_id=report_id,
+            query=upstream_kwargs["query"],
+            source_ids=source_ids,
+            revision=report_revision,
+            payload={
+                "document_package": getattr(document, "research_package", {}),
+                "coverage_state": coverage.model_dump(),
+                "final_verification": final_verification.model_dump() if final_verification is not None else None,
+            },
+        )
+        persisted_report = persist_verified_source_report(report_store, report)
+        metadata["verified_source_report"] = {
+            "report_id": persisted_report.report_id,
+            "revision": persisted_report.revision,
+            "source_ids": list(persisted_report.source_ids),
+        }
 
     research_run = checkpoint_research_run(
         run_store, research_run, stage="completed", status="completed",

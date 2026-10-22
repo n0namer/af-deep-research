@@ -25,10 +25,12 @@ Usage:
 """
 
 import asyncio
+import os
 from typing import List, Optional
 from datetime import datetime
 
 from .base import SearchProvider, SearchResult, SearchResponse
+from .federated import select_federated_providers, search_with_providers
 from .jina import JinaSearchProvider
 from .tavily import TavilySearchProvider
 from .firecrawl import FirecrawlSearchProvider
@@ -46,18 +48,26 @@ from .registry import (
 
 
 async def search(query: str) -> SearchResponse:
-    """
-    Search using the default available provider.
+    """Search using SEARCH_MODE with explicit-provider precedence."""
+    preferred = os.getenv("SEARCH_PROVIDER", "").strip()
+    mode = os.getenv("SEARCH_MODE", "auto").strip().lower()
 
-    Args:
-        query: Search term to query
+    if preferred:
+        provider = get_default_provider()
+        if not provider:
+            raise RuntimeError(
+                "No search providers available. Please configure at least one of: "
+                "JINA_API_KEY, TAVILY_API_KEY, FIRECRAWL_API_KEY, or SERPER_API_KEY"
+            )
+        return await provider.search(query)
 
-    Returns:
-        SearchResponse: Unified search results
+    if mode in {"auto", "federated"}:
+        providers = select_federated_providers()
+        if len(providers) >= 2:
+            return await search_with_providers(query, providers)
+        if len(providers) == 1:
+            return await providers[0].search(query)
 
-    Raises:
-        RuntimeError: If no providers are available
-    """
     provider = get_default_provider()
     if not provider:
         raise RuntimeError(

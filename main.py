@@ -209,7 +209,20 @@ async def ai_with_dynamic_params(
         model=model or getattr(ai_config, "model", None), call_id=call_id,
     )
     try:
-        result = await app.ai(*args, **merged_kwargs)
+        if os.getenv("DR_LLM_TRANSPORT", "").strip().lower() == "opencodex":
+            from reasoners.deep_research_ext.opencodex_responses import call_opencodex_responses
+            if args:
+                raise ValueError("OpenCodex transport requires named user/system prompts")
+            result = await call_opencodex_responses(
+                user=merged_kwargs.get("user"),
+                system=merged_kwargs.get("system"),
+                schema=merged_kwargs.get("schema"),
+                model=merged_kwargs.get("model") or ai_config.model,
+                max_tokens=merged_kwargs.get("max_tokens") or ai_config.max_tokens or 8192,
+                timeout_seconds=float(os.getenv("DR_OPENCODEX_TIMEOUT_SECONDS", "180")),
+            )
+        else:
+            result = await app.ai(*args, **merged_kwargs)
     except Exception as exc:
         record_provider_event(
             operation=operation, status="error", latency_seconds=time.monotonic() - started,

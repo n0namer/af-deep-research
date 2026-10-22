@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Awaitable, Callable, Optional
 from .methodology import select_methodology
 from .models import ExtensionTrace
@@ -84,16 +85,35 @@ def install_verified_deep_research(
             "api_key": api_key,
         }
         if prepare_research_package is not None and generate_document_from_package is not None:
-            return await execute_verified_pipeline(
-                trace=trace,
-                prepare_research_package=prepare_research_package,
-                generate_document_from_package=generate_document_from_package,
-                stream_executor=stream_executor,
-                upstream_kwargs=upstream_kwargs,
-                ai_call=ai_call,
-                run_store=run_store,
-                research_run=research_run,
-            )
+            try:
+                return await execute_verified_pipeline(
+                    trace=trace,
+                    prepare_research_package=prepare_research_package,
+                    generate_document_from_package=generate_document_from_package,
+                    stream_executor=stream_executor,
+                    upstream_kwargs=upstream_kwargs,
+                    ai_call=ai_call,
+                    run_store=run_store,
+                    research_run=research_run,
+                )
+            except (Exception, asyncio.CancelledError) as exc:
+                # A provider error must never leave a perpetual 'running' checkpoint.
+                current = run_store.load(research_run.run_id)
+                if current is not None and current.status not in {"failed", "completed"}:
+                    try:
+                        checkpoint_research_run(
+                            run_store, current, stage="failed", status="failed",
+                            payload={
+                                **dict(current.payload),
+                                "failure_stage": "research_pipeline",
+                                "failure_type": type(exc).__name__,
+                                "provider_events": provider_events_snapshot(),
+                            },
+                        )
+                    except Exception:
+                        # Do not hide the original research failure.
+                        pass
+                raise
         return await adapter.execute(trace=trace, upstream_kwargs=upstream_kwargs)
 
     execute_verified_deep_research.__name__ = "execute_verified_deep_research"

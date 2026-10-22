@@ -22,7 +22,50 @@ class GapRoundTrace(BaseModel):
     new_source_count: int = 0
     new_claim_count: int = 0
     new_verified_claim_count: int = 0
+    skipped_source_count: int = 0
+    budget_exhausted: bool = False
     novelty_exhausted: bool = False
+
+
+_INSTRUCTION_MARKERS = (
+    "ignore previous instructions",
+    "disregard prior instructions",
+    "reveal secret",
+    "system message:",
+    "follow these instructions",
+)
+
+
+def _source_is_admissible(source: Dict) -> bool:
+    url = str(source.get("url") or "").strip()
+    content = str(source.get("content") or "").strip()
+    if not url or not content:
+        return False
+    lowered = content.lower()
+    return not any(marker in lowered for marker in _INSTRUCTION_MARKERS)
+
+
+def _source_identity(source: Dict) -> str:
+    return str(source.get("url") or source.get("content_hash") or source.get("id") or "").strip()
+
+
+def _numeric_source_id(value: object) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _normalized_query_key(value: str) -> str:
+    return " ".join(str(value or "").split()).casefold()
+
+
+def _attempted_gap_queries(research_package: Dict) -> set[tuple[str, str]]:
+    return {
+        (str(item.get("requirement_id") or ""), _normalized_query_key(item.get("query")))
+        for item in research_package.get("gap_research_attempts", []) or []
+        if item.get("requirement_id") and _normalized_query_key(item.get("query"))
+    }
 
 
 def unresolved_requirement_ids(coverage: CoverageState) -> List[str]:
@@ -69,25 +112,47 @@ async def run_gap_research_round(
     source_strictness: str,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
+    source_budget: Optional[int] = None,
 ) -> tuple[Dict, EvidenceLedger, GapRoundTrace]:
+    if source_budget is not None and source_budget <= 0:
+        return research_package, ledger, GapRoundTrace(budget_exhausted=True, novelty_exhausted=True)
+
     plan = await plan_gap_queries(contract=contract, coverage=coverage, ai_call=ai_call, model=model, api_key=api_key)
     if not plan.gaps:
         return research_package, ledger, GapRoundTrace(novelty_exhausted=True)
 
-    max_id = max([int(a.get("id") or 0) for a in research_package.get("source_articles", []) or []] or [0])
+    max_id = max([_numeric_source_id(a.get("id")) for a in research_package.get("source_articles", []) or []] or [0])
     requirement_by_id = {item.requirement_id: item for item in contract.requirements}
+    attempted_queries = _attempted_gap_queries(research_package)
+    round_attempts = []
     tasks = []
     active_gaps = []
+    scheduled_gaps = set()
     for index, gap in enumerate(plan.gaps):
-        if not gap.queries:
+        normalized_queries = []
+        query_keys = set()
+        for query in gap.queries:
+            normalized_query = " ".join(query.split())
+            query_key = normalized_query.casefold()
+            if normalized_query and query_key not in query_keys:
+                query_keys.add(query_key)
+                round_attempts.append({"requirement_id": gap.requirement_id, "query": normalized_query})
+                if (gap.requirement_id, query_key) in attempted_queries:
+                    continue
+                normalized_queries.append(normalized_query)
+        if not normalized_queries:
             continue
         requirement = requirement_by_id.get(gap.requirement_id)
         if requirement is None:
             continue
+        gap_key = (gap.requirement_id, tuple(sorted(query_keys)))
+        if gap_key in scheduled_gaps:
+            continue
+        scheduled_gaps.add(gap_key)
         active_gaps.append(gap.requirement_id)
         tasks.append(stream_executor(
             f"VerifiedGap_{gap.requirement_id}",
-            gap.queries,
+            normalized_queries,
             requirement.question,
             contract.query,
             requirement.question,
@@ -97,14 +162,48 @@ async def run_gap_research_round(
             source_strictness=source_strictness,
         ))
     if not tasks:
-        return research_package, ledger, GapRoundTrace(attempted_requirements=active_gaps, novelty_exhausted=True)
+        attempted_package = dict(research_package)
+        attempted_package["gap_research_attempts"] = list(
+            research_package.get("gap_research_attempts", []) or []
+        ) + round_attempts
+        return attempted_package, ledger, GapRoundTrace(
+            attempted_requirements=active_gaps,
+            skipped_source_count=len(round_attempts),
+            novelty_exhausted=True,
+        )
 
     outputs = await asyncio.gather(*tasks)
+    existing_keys = {
+        _source_identity(article)
+        for article in research_package.get("source_articles", []) or []
+        if _source_identity(article)
+    }
     new_articles = []
     new_evidence = []
+    skipped_source_count = 0
+    budget_skipped_count = 0
+    accepted_keys = set()
     for output in outputs:
-        new_articles.extend([item.model_dump() if hasattr(item, "model_dump") else dict(item) for item in output.source_articles])
-        new_evidence.extend([item.model_dump() if hasattr(item, "model_dump") else dict(item) for item in output.article_evidence])
+        candidates = [
+            item.model_dump() if hasattr(item, "model_dump") else dict(item)
+            for item in getattr(output, "source_articles", []) or []
+        ]
+        for article in candidates:
+            key = _source_identity(article)
+            if not _source_is_admissible(article) or not key or key in existing_keys or key in accepted_keys:
+                skipped_source_count += 1
+                continue
+            if source_budget is not None and len(new_articles) >= source_budget:
+                skipped_source_count += 1
+                budget_skipped_count += 1
+                continue
+            accepted_keys.add(key)
+            new_articles.append(article)
+        accepted_ids = {str(article.get("id")) for article in new_articles}
+        for item in getattr(output, "article_evidence", []) or []:
+            evidence = item.model_dump() if hasattr(item, "model_dump") else dict(item)
+            if str(evidence.get("article_id")) in accepted_ids:
+                new_evidence.append(evidence)
 
     extra_package = {"source_articles": new_articles, "article_evidence": new_evidence}
     extra_ledger = build_evidence_ledger(extra_package, [])
@@ -113,16 +212,28 @@ async def run_gap_research_round(
     merged_ledger = merge_evidence_ledgers(ledger, extra_ledger)
 
     merged_package = dict(research_package)
-    existing_urls = {str(a.get("url") or "") for a in merged_package.get("source_articles", []) or []}
-    merged_package["source_articles"] = list(merged_package.get("source_articles", []) or []) + [a for a in new_articles if str(a.get("url") or "") not in existing_urls]
+    merged_package["gap_research_attempts"] = list(
+        research_package.get("gap_research_attempts", []) or []
+    ) + round_attempts
+    existing_keys = {
+        _source_identity(article)
+        for article in merged_package.get("source_articles", []) or []
+        if _source_identity(article)
+    }
+    merged_package["source_articles"] = list(merged_package.get("source_articles", []) or []) + [
+        article for article in new_articles
+        if _source_identity(article) not in existing_keys
+    ]
     merged_package["article_evidence"] = list(merged_package.get("article_evidence", []) or []) + new_evidence
 
     new_verified = sum(1 for claim in extra_ledger.claims if claim.status == "verified" and claim.support_state == "source_entailed")
     trace = GapRoundTrace(
         attempted_requirements=active_gaps,
-        new_source_count=len(extra_ledger.sources),
+        new_source_count=len(new_articles),
         new_claim_count=len(extra_ledger.claims),
         new_verified_claim_count=new_verified,
+        skipped_source_count=skipped_source_count,
+        budget_exhausted=(budget_skipped_count > 0),
         novelty_exhausted=(new_verified == 0),
     )
     return merged_package, merged_ledger, trace

@@ -1,0 +1,10 @@
+flowchart LR
+    api["skills.search public API"]
+    registry["Provider registry and priority"]
+    federated["Bounded federated orchestration"]
+    adapters["Provider adapter instances"]
+    fusion["Canonical URL and RRF fusion"]
+    api -->|default or explicit search| registry
+    registry -->|available providers| adapters
+    federated -->|concurrent bounded calls| adapters
+    federated -->|successful responses| fusion

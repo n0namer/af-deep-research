@@ -1,0 +1,8 @@
+flowchart LR
+    caller["Research caller - query and provider policy"]
+    system["Deep research search boundary - Python"]
+    providers["Configured provider adapters"]
+    fusion["Federated retrieval and deterministic fusion"]
+    caller -->|query and policy| system
+    system -->|select and invoke| providers
+    providers -->|responses| fusion

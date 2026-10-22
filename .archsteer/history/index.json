@@ -1,0 +1,15 @@
+[
+  {
+    "id": "20261014T154209817303",
+    "timestamp": "2026-10-14T15:42:06.933591+00:00",
+    "commit_sha": "e10580c",
+    "fingerprint": "91bcf7f2b751",
+    "components": 141,
+    "layers": [],
+    "external_dependencies": 1,
+    "data_stores": 0,
+    "conformance_score": null,
+    "drift_score": null,
+    "open_violations": null
+  }
+]

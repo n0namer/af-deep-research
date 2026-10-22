@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "seq": 0,
+      "length": 6,
+      "headHash": "sha256:a884040b75b936a6edd5b3561a9c5b4fe39e83954b1431d5b494767d3ad2c8a4",
+      "prevAnchorHash": null,
+      "ts": 1791648636532,
+      "event": "establish-anchor",
+      "by": "NIKITA",
+      "hash": "95c6902e05b7e61600be7241064b3e4aca25764cfea46bec6354ab338f9d0ffc"
+    },
+    {
+      "seq": 1,
+      "length": 7,
+      "headHash": "sha256:dee10c71ec1f948971ff250508c9d4c69f553e53481ba72cdae3c28ca68a07cd",
+      "prevAnchorHash": "95c6902e05b7e61600be7241064b3e4aca25764cfea46bec6354ab338f9d0ffc",
+      "ts": 1791648763496,
+      "event": "append",
+      "hash": "f44a1eab6b0847eeb448873c3f9a2594ced3c8c938e0755cfdec6e6e12419ef1"
+    },
+    {
+      "seq": 2,
+      "length": 8,
+      "headHash": "sha256:86a3651ec26eae58deafd64f92a5c34295f613fe85d57eb808ea72b2dd87e68f",
+      "prevAnchorHash": "f44a1eab6b0847eeb448873c3f9a2594ced3c8c938e0755cfdec6e6e12419ef1",
+      "ts": 1791648926225,
+      "event": "append",
+      "hash": "8e0e25546675d0f333f46cb095b423d96804881e33f0d595f122d657eaac1497"
+    },
+    {
+      "seq": 3,
+      "length": 9,
+      "headHash": "sha256:b7ed23944297c927209e79428564dfbf0b18f221b57063c8f94c34f2f58d2d16",
+      "prevAnchorHash": "8e0e25546675d0f333f46cb095b423d96804881e33f0d595f122d657eaac1497",
+      "ts": 1791650216162,
+      "event": "append",
+      "hash": "db080d9f68c7abee0cbfa9f6f5117f55eb46fe7fedf4cf73a81809fe093441ec"
+    }
+  ]
+}

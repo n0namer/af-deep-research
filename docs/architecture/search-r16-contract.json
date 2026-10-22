@@ -1,0 +1,159 @@
+{
+  "schema": "search-r16-architecture-contract.v1",
+  "project": "af-deep-research",
+  "status": "CANDIDATE/UNACCEPTED",
+  "baseline_commit": "e10580c89eac7a4f6efb50c921ae9107ce8ad8dc",
+  "sources": [
+    {
+      "path": "skills/search/__init__.py",
+      "sha256": "07e2f88feea292fe3b645b142639d41bd9ff6cbd25a2f8f2b2ae5a3a3d0b6f10"
+    },
+    {
+      "path": "skills/search/registry.py",
+      "sha256": "58d587dff3951e0d86fb5249e493b9dc5ca9813512dfc308d12107fde3b807c6"
+    },
+    {
+      "path": "skills/search/federated.py",
+      "sha256": "b4c5085bdecb9b5c737df4701f664bac495e1a4ebde749d80f0ab3c16b957a7a"
+    },
+    {
+      "path": "skills/search/fusion.py",
+      "sha256": "c7c0684e8d5d55df099ebf7690bfceafff78e79fe4ad15a6265ecb29a5a5625c"
+    },
+    {
+      "path": "main.py",
+      "sha256": "5bebcfd28bd954561aaa5fcc7654dbb5615d4a552d9daaa4656db42cc76649c8"
+    }
+  ],
+  "signatures": [
+    {
+      "source": "skills/search/__init__.py",
+      "signature": "async def search(query: str) -> SearchResponse:"
+    },
+    {
+      "source": "skills/search/registry.py",
+      "signature": "def get_default_provider() -> Optional[SearchProvider]:"
+    },
+    {
+      "source": "skills/search/federated.py",
+      "signature": "def select_federated_providers(provider_names: Optional[Sequence[str]] = None) -> List[SearchProvider]:"
+    },
+    {
+      "source": "skills/search/fusion.py",
+      "signature": "def canonicalize_url(url: str) -> str:"
+    },
+    {
+      "source": "skills/search/fusion.py",
+      "signature": "def fuse_search_responses("
+    },
+    {
+      "source": "main.py",
+      "signature": "async def search_web_for_content(query: str) -> List[Dict]:"
+    }
+  ],
+  "graphify_archsteer": {
+    "status": "UNVERIFIED",
+    "reason": "Authorized reader reported graphify/model files unavailable; no inventory or drift claim fabricated"
+  },
+  "diagrams": [
+    {
+      "level": "context",
+      "path": "docs/architecture/search-r16-c4-context.mmd",
+      "nodes": [
+        "caller",
+        "system",
+        "providers",
+        "fusion"
+      ],
+      "edges": [
+        [
+          "caller",
+          "system",
+          "query and policy"
+        ],
+        [
+          "system",
+          "providers",
+          "select and invoke"
+        ],
+        [
+          "providers",
+          "fusion",
+          "responses"
+        ]
+      ]
+    },
+    {
+      "level": "container",
+      "path": "docs/architecture/search-r16-c4-container.mmd",
+      "nodes": [
+        "api",
+        "registry",
+        "federated",
+        "adapters",
+        "fusion"
+      ],
+      "edges": [
+        [
+          "api",
+          "registry",
+          "default or explicit search"
+        ],
+        [
+          "registry",
+          "adapters",
+          "available providers"
+        ],
+        [
+          "federated",
+          "adapters",
+          "concurrent bounded calls"
+        ],
+        [
+          "federated",
+          "fusion",
+          "successful responses"
+        ]
+      ]
+    },
+    {
+      "level": "component",
+      "path": "docs/architecture/search-r16-c4-component.mmd",
+      "nodes": [
+        "search",
+        "select",
+        "execute",
+        "canonical",
+        "rrf"
+      ],
+      "edges": [
+        [
+          "search",
+          "select",
+          "resolve default"
+        ],
+        [
+          "select",
+          "execute",
+          "ordered provider set"
+        ],
+        [
+          "execute",
+          "rrf",
+          "fuse successful responses"
+        ],
+        [
+          "rrf",
+          "canonical",
+          "deduplicate by URL"
+        ]
+      ]
+    }
+  ],
+  "limitations": [
+    "Static Node checks do not execute Python or provider network calls",
+    "Graphify and ArchSteer are UNVERIFIED, not empty or complete",
+    "Mermaid and Structurizr rendering unavailable",
+    "No product source, live task, lease, or release state changed"
+  ]
+}

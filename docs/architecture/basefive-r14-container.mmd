@@ -1,0 +1,11 @@
+flowchart LR
+    pipeline["Python verified pipeline - logical runtime"]
+    callbacks["Injected async research and generation callbacks"]
+    runstore["ResearchRunStore - filesystem adapter"]
+    files["JSON checkpoint files - replace and fsync"]
+    reportstore["Optional report store - injected persistence"]
+    memory["DurableVerifiedSourceReportStore - process memory only"]
+    pipeline -->|await callbacks| callbacks
+    pipeline -->|begin and checkpoint| runstore
+    runstore -->|save and load JSON| files
+    pipeline -->|persist legacy-default DTO| reportstore

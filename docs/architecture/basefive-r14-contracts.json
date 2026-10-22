@@ -1,0 +1,89 @@
+{
+  "schema": "basefive-r14-architecture-contract.v1",
+  "project": "af-deep-research",
+  "status": "CANDIDATE/UNACCEPTED",
+  "baseline_commit": "e10580c89eac7a4f6efb50c921ae9107ce8ad8dc",
+  "scope": "Static contracts for two inspected Python modules; not whole-repository or runtime acceptance",
+  "sources": [
+    {"path":"reasoners/deep_research_ext/research_run.py","sha256":"a4caa1f2d1ea2f4d70d3039fa3b2eac8371dde530ee0ebe5ec9537a602ac36ea"},
+    {"path":"reasoners/deep_research_ext/verified_pipeline.py","sha256":"97cf7e84e8f62c1190d1b5a6c4ac59be6d175e336be8dd1db3b64b9ea81dbd87"},
+    {"path":".archsteer/model.json","sha256":"ba854b09ce33e4095e370dd0f82d80d60683ea69b193e59bb47a887287c9f539"},
+    {"path":".archsteer/architecture.md","sha256":"66b01056637fc68119270cf62e871d297803e2fbadcaebb3b0cfed406b0a8680"},
+    {"path":"graphify-out/graph.json","sha256":"40bfff7919e18ba5b929abf1565680ce8fb055c8e2e1d36b3ccd967e5a9705ec"},
+    {"path":"docs/acceptance/c4-releasegate-reducer-frontier-20261013.md","sha256":"e776f4091b4e24a2091e97d08ea6f215fbe2b1ed548d1e13b5fed75fb09538ce"}
+  ],
+  "versions": {"ResearchRun":"0.1","VerifiedSourceReport":"r10","ArchSteer":"1.0.0"},
+  "dto_types": {
+    "ResearchRun":["run_id: str","query: str","stage: str","checkpoint_seq: int","status: str","created_at: float","updated_at: float","schema_version: str = SCHEMA_VERSION","replay_source_run_id: Optional[str] = None","source_revision: Optional[str] = None","source_owner: Optional[str] = None","source_ids: Tuple[str, ...] = ()","evidence_ids: Tuple[str, ...] = ()","evidence_summary: Mapping[str, Any] = field(default_factory=dict)","coverage_state: Mapping[str, Any] = field(default_factory=dict)","open_gap_ids: Tuple[str, ...] = ()","conflicts: Tuple[str, ...] = ()","stage_history: Tuple[str, ...] = ()","budgets: Mapping[str, Any] = field(default_factory=dict)","payload: Mapping[str, Any] = field(default_factory=dict)"],
+    "GroundedFact":["fact_id: str","source_id: str","source_sha256: str"],
+    "VerifiedSourceReport":["report_id: str","query: str","source_ids: tuple[str, ...]","revision: int","payload: dict[str, Any]","source_revision: str = \"legacy\"","source_owner: str = \"legacy\"","source_file_sha256: str = \"\"","facts: tuple[GroundedFact, ...] = ()","abstained_requirement_ids: tuple[str, ...] = ()","dto_version: str = \"r10\""]
+  },
+  "dtos": [
+    {"name":"ResearchRun","source":"reasoners/deep_research_ext/research_run.py","fields":["run_id","query","stage","checkpoint_seq","status","created_at","updated_at","schema_version","replay_source_run_id","source_revision","source_owner","source_ids","evidence_ids","evidence_summary","coverage_state","open_gap_ids","conflicts","stage_history","budgets","payload"]},
+    {"name":"GroundedFact","source":"reasoners/deep_research_ext/verified_pipeline.py","fields":["fact_id","source_id","source_sha256"]},
+    {"name":"VerifiedSourceReport","source":"reasoners/deep_research_ext/verified_pipeline.py","fields":["report_id","query","source_ids","revision","payload","source_revision","source_owner","source_file_sha256","facts","abstained_requirement_ids","dto_version"]}
+  ],
+  "apis": [
+    {"source":"reasoners/deep_research_ext/research_run.py","symbol":"begin_research_run","signature":"def begin_research_run( query: str, *, store: Optional[ResearchRunStore] = None, source_revision: Optional[str] = None, source_owner: Optional[str] = None, ) -> Tuple[ResearchRunStore, ResearchRun]:"},
+    {"source":"reasoners/deep_research_ext/research_run.py","symbol":"checkpoint_research_run","signature":"def checkpoint_research_run( store: ResearchRunStore, run: ResearchRun, *, stage: str, status: Optional[str] = None, source_revision: Optional[str] = None, source_owner: Optional[str] = None, expected_checkpoint_seq: Optional[int] = None, source_ids: Optional[Tuple[str, ...]] = None, evidence_ids: Optional[Tuple[str, ...]] = None, evidence_summary: Optional[Mapping[str, Any]] = None, coverage_state: Optional[Mapping[str, Any]] = None, open_gap_ids: Optional[Tuple[str, ...]] = None, conflicts: Optional[Tuple[str, ...]] = None, budgets: Optional[Mapping[str, Any]] = None, payload: Optional[Mapping[str, Any]] = None, ) -> ResearchRun:"},
+    {"source":"reasoners/deep_research_ext/research_run.py","symbol":"resume_research_run","signature":"def resume_research_run( store: ResearchRunStore, run_id: str, *, source_revision: Optional[str] = None, source_owner: Optional[str] = None, ) -> Tuple[ResearchRun, Dict[str, Any]]:"},
+    {"source":"reasoners/deep_research_ext/verified_pipeline.py","symbol":"build_grounded_verified_report","signature":"def build_grounded_verified_report(*, report_id, query, source_revision, source_owner, source_file_sha256, facts, payload, abstained_requirement_ids=(), revision=1):"},
+    {"source":"reasoners/deep_research_ext/verified_pipeline.py","symbol":"persist_grounded_verified_report","signature":"def persist_grounded_verified_report(store, candidate, *, owner, cancellation=None, effect_id=None):"},
+    {"source":"reasoners/deep_research_ext/verified_pipeline.py","symbol":"resume_grounded_verified_report","signature":"def resume_grounded_verified_report(store, report_id, *, owner, source_file_sha256):"},
+    {"source":"reasoners/deep_research_ext/verified_pipeline.py","symbol":"execute_verified_pipeline","signature":"async def execute_verified_pipeline( *, trace: ExtensionTrace, prepare_research_package: Callable[..., Awaitable[Any]], generate_document_from_package: Callable[..., Awaitable[Any]], stream_executor: Optional[Callable[..., Awaitable[Any]]] = None, upstream_kwargs: Dict[str, Any], ai_call=None, run_store=None, research_run=None, cancellation=None, report_store=None, report_id=None, report_revision=1, ) -> Any:"}
+  ],
+  "coverage": {
+    "archsteer_component_count":141,
+    "archsteer_languages":["python"],
+    "archsteer_go_paths":[],
+    "graphify_go_paths":[],
+    "go_package_status":"UNVERIFIED: no Go source or package manifest is authorized for inspection; zero indexed paths is not proof of repository absence",
+    "targets":[
+      {"source":"reasoners/deep_research_ext/research_run.py","graphify_missing_top_level":["ResearchRunCheckpointError","StaleResearchRunError","_unique_strings","recorded_provider_call_ids","provider_call_already_recorded","recorded_evidence_ids","evidence_already_recorded","resume_research_run"],"graphify_stale_locations":[{"symbol":"ResearchRun","indexed":16,"actual":29},{"symbol":"checkpoint_research_run","indexed":122,"actual":197}]},
+      {"source":"reasoners/deep_research_ext/verified_pipeline.py","graphify_missing_top_level":["VerifiedSourceReportError","GroundedFact","VerifiedSourceReport","_clone_report","source_file_sha256","build_verified_source_report","build_grounded_verified_report","replay_verified_source_report","persist_verified_source_report","DurableVerifiedSourceReportStore","persist_grounded_verified_report","resume_grounded_verified_report","_is_cancelled","_raise_if_cancelled"],"graphify_stale_locations":[{"symbol":"execute_verified_pipeline","indexed":82,"actual":366}]}
+    ]
+  },
+  "diagrams": [
+    {"level":"context","path":"docs/architecture/basefive-r14-C4-context.md","nodes":[
+      {"id":"caller","label":"Caller - query and injected callbacks","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"upstream_kwargs: Dict[str, Any]"},
+      {"id":"system","label":"Verified research system - Python boundary","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"async def execute_verified_pipeline("},
+      {"id":"research","label":"Research provider callback - implementation unverified","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"research = await prepare_research_package("},
+      {"id":"generation","label":"Document generation callback - implementation unverified","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"document = await generate_document_from_package("},
+      {"id":"storage","label":"Checkpoint filesystem","source":"reasoners/deep_research_ext/research_run.py","anchor":"os.replace(tmp, path)"}
+    ],"edges":[
+      {"from":"caller","to":"system","label":"query and callbacks","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"upstream_kwargs[\"query\"]"},
+      {"from":"system","to":"research","label":"await research package","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"research = await prepare_research_package("},
+      {"from":"system","to":"generation","label":"await document","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"document = await generate_document_from_package("},
+      {"from":"system","to":"storage","label":"checkpoint through run store","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"from .research_run import begin_research_run, checkpoint_research_run"}
+    ]},
+    {"level":"container","path":"docs/architecture/basefive-r14-container.mmd","nodes":[
+      {"id":"pipeline","label":"Python verified pipeline - logical runtime","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"async def execute_verified_pipeline("},
+      {"id":"callbacks","label":"Injected async research and generation callbacks","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"generate_document_from_package: Callable[..., Awaitable[Any]]"},
+      {"id":"runstore","label":"ResearchRunStore - filesystem adapter","source":"reasoners/deep_research_ext/research_run.py","anchor":"class ResearchRunStore:"},
+      {"id":"files","label":"JSON checkpoint files - replace and fsync","source":"reasoners/deep_research_ext/research_run.py","anchor":"os.fsync(handle.fileno())"},
+      {"id":"reportstore","label":"Optional report store - injected persistence","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"if report_store is not None:"},
+      {"id":"memory","label":"DurableVerifiedSourceReportStore - process memory only","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"self._reports = {}"}
+    ],"edges":[
+      {"from":"pipeline","to":"callbacks","label":"await callbacks","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"research = await prepare_research_package("},
+      {"from":"pipeline","to":"runstore","label":"begin and checkpoint","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"from .research_run import begin_research_run, checkpoint_research_run"},
+      {"from":"runstore","to":"files","label":"save and load JSON","source":"reasoners/deep_research_ext/research_run.py","anchor":"run = ResearchRun.from_dict(json.load(handle))"},
+      {"from":"pipeline","to":"reportstore","label":"persist legacy-default DTO","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"persisted_report = persist_verified_source_report(report_store, report)"}
+    ]},
+    {"level":"component","path":"docs/architecture/basefive-r14-component.mmd","nodes":[
+      {"id":"execute","label":"execute_verified_pipeline","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"async def execute_verified_pipeline("},
+      {"id":"checkpoint","label":"checkpoint_research_run - owner revision sequence","source":"reasoners/deep_research_ext/research_run.py","anchor":"def checkpoint_research_run("},
+      {"id":"resume","label":"resume_research_run - terminal and receipt summary","source":"reasoners/deep_research_ext/research_run.py","anchor":"def resume_research_run("},
+      {"id":"dto","label":"VerifiedSourceReport - r10","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"dto_version: str = \"r10\""},
+      {"id":"build","label":"build_grounded_verified_report - separate grounded API","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"def build_grounded_verified_report("},
+      {"id":"persist","label":"persist_grounded_verified_report - owner cancellation effect","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"def persist_grounded_verified_report("},
+      {"id":"replay","label":"replay_verified_source_report - identity and monotonic revision","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"def replay_verified_source_report("},
+      {"id":"store","label":"DurableVerifiedSourceReportStore - RLock and memory","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"self._lock = threading.RLock()"}
+    ],"edges":[
+      {"from":"execute","to":"checkpoint","label":"persist phase state","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"research_run = checkpoint_research_run("},
+      {"from":"build","to":"dto","label":"construct grounded DTO","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"facts=normalized_facts,"},
+      {"from":"persist","to":"replay","label":"canonical revision","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"canonical, changed = replay_verified_source_report(existing, candidate)"},
+      {"from":"persist","to":"store","label":"save then optional record_effect","source":"reasoners/deep_research_ext/verified_pipeline.py","anchor":"effect_applied = store.record_effect("}
+    ]}
+  ],
+  "limitations":["Static Node source/diagram assertions do not execute Python or prove restart durability","Mermaid restricted flowchart consistency is checked; renderer is not available in authorized tooling","No Go source/package manifest inspected; no Go completeness or runtime claim","No native CrewSync task-to-result E2E or independent QA acceptance","Graphify lacks source hashes and signatures; ArchSteer names/imports do not prove DTO compatibility","Git branch and dirty state cannot be independently queried by scoped tools","BMad config scripts/spec/sprint writes and delegation are unavailable or outside authorization; trusted task and existing acceptance artifact govern"]
+}
