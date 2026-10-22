@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0.0", "black>=22.0.0", "flake8>=5.0.0", "mypy>=0.991"]
+dev = ["pytest>=7.0.0", "pytest-asyncio>=1.0", "black>=22.0.0", "flake8>=5.0.0", "mypy>=0.991"]
 
 [project.urls]
 Homepage = "https://github.com/Agent-Field/af-deep-research"

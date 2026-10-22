@@ -46,7 +46,8 @@ def test_real_child_process_kill_resumes_without_repeating_side_effects(tmp_path
         capture_output=True,
         text=True,
     )
-    assert completed.returncode == -9, completed.stderr
+    expected_kill_exit = 9 if os.name == "nt" else -9
+    assert completed.returncode == expected_kill_exit, completed.stderr
 
     store = ResearchRunStore(str(root))
     run_id = next(p.stem for p in root.glob("*.json"))

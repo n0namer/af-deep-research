@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 
 import pytest
 
@@ -62,7 +63,8 @@ async def test_four_provider_fanout_and_canonical_dedup(monkeypatch):
 def test_provider_selection_is_bounded_to_four_and_deduplicated(monkeypatch):
     providers = [StubProvider(str(i)) for i in range(6)]
     monkeypatch.setattr(
-        "skills.search.federated.get_provider",
+        importlib.import_module("skills.search.federated"),
+        "get_provider",
         lambda name: next((provider for provider in providers if provider.name == name), None),
     )
     monkeypatch.setenv("SEARCH_PROVIDERS", "0,1,1,2,3,4,5")

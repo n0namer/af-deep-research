@@ -44,7 +44,7 @@ def test_tracking_parameters_and_fragments_do_not_create_new_identity():
 
 def test_default_ports_and_dot_segments_do_not_create_new_identity():
     assert canonicalize_url("HTTPS://EXAMPLE.COM:443/a/./b/../article/") == (
-        "https://example.com/article"
+        "https://example.com/a/article"
     )
 
 

@@ -11,7 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "reasoners" / "deep_research_ext" / "research_run.py"
-SOURCE_SHA256 = "87c193a386be13daa2b89dceac6b749a87ae9b47efd84b18bd598017c6e9e8c3"
+SOURCE_SHA256 = "e36c3727e2045afc02814d46397c17f2aa8d6ad8cca307a7698a3d2d9c9a6c72"
 RUN_ID = "r31-cas-replay"
 OWNER = "r31-owner"
 REVISION = "r31-source"

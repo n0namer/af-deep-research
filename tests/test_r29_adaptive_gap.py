@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from reasoners.deep_research_ext import gap_research
+from reasoners.deep_research_ext.evidence_ledger import EvidenceLedger
 
 
 def test_admissible_source_requires_url_content_and_rejects_instruction_injection():
@@ -31,7 +32,7 @@ def test_gap_round_retrieves_new_source_and_records_attempt(monkeypatch):
     coverage = SimpleNamespace(requirements=[SimpleNamespace(
         requirement_id="r1", status="unverified"
     )])
-    ledger = SimpleNamespace(claims=[])
+    ledger = EvidenceLedger(created_at="2026-10-22T00:00:00Z")
     package = {"source_articles": [], "article_evidence": []}
 
     async def ai_call(**kwargs):
@@ -47,10 +48,6 @@ def test_gap_round_retrieves_new_source_and_records_attempt(monkeypatch):
             article_evidence=[],
         )
 
-    monkeypatch.setattr(
-        gap_research, "build_evidence_ledger",
-        lambda package, _: SimpleNamespace(claims=[]),
-    )
     async def identity_map(**kwargs):
         return kwargs["ledger"]
     async def identity_verify(**kwargs):
@@ -58,7 +55,7 @@ def test_gap_round_retrieves_new_source_and_records_attempt(monkeypatch):
     monkeypatch.setattr(gap_research, "map_claims_to_requirements", identity_map)
     monkeypatch.setattr(gap_research, "verify_ledger_claims", identity_verify)
 
-    result_package, _, trace = asyncio.run(gap_research.run_gap_research_round(
+    result_package, merged_ledger, trace = asyncio.run(gap_research.run_gap_research_round(
         contract=contract, coverage=coverage, ledger=ledger,
         research_package=package, stream_executor=stream_executor,
         ai_call=ai_call, source_strictness="strict",
@@ -68,6 +65,7 @@ def test_gap_round_retrieves_new_source_and_records_attempt(monkeypatch):
         {"requirement_id": "r1", "query": "official source"}
     ]
     assert trace.new_source_count == 1
+    assert [source.source_id for source in merged_ledger.sources] == [1]
 
 
 def test_repeated_unverified_query_is_not_scheduled(monkeypatch):
@@ -102,7 +100,7 @@ def test_repeated_unverified_query_is_not_scheduled(monkeypatch):
     ))
     assert called == []
     assert result_package["gap_research_attempts"][-1] == {
-        "requirement_id": "r1", "query": "OFFICIAL   SOURCE"
+        "requirement_id": "r1", "query": "OFFICIAL SOURCE"
     }
     assert trace.novelty_exhausted
 

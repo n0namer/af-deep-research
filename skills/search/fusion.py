@@ -103,6 +103,8 @@ def fuse_search_responses(
                         representative.title = result.title
                     if result.published_time:
                         representative.published_time = result.published_time
+                if result.title and len(result.title.strip()) > len(representative.title or ""):
+                    representative.title = result.title
 
             if provider in entry["ranks"]:
                 continue
