@@ -21,6 +21,7 @@ from agentfield import Agent, AIConfig
 from pydantic import BaseModel, Field
 from temporal_context import get_temporal_context
 from reasoners.deep_research_ext.provider_telemetry import classify_provider_error, record_provider_event
+from reasoners.deep_research_ext.runtime_provider import resolve_runtime_provider
 from doc_generation_pipeline import (
     DocumentResponse as DocGenDocumentResponse,
     FinalDocument as DocGenFinalDocument,
@@ -49,19 +50,23 @@ ADJUDICATION_BATCH_SIZE = 50
 ENTITY_BATCH_SIZE = 10
 
 # --- AI Configuration & Agent Setup ---
-# Build litellm_params - supports local Ollama deployments
+# Resolve platform defaults once at startup. Per-call overrides continue to flow
+# through ai_with_dynamic_params below.
+runtime_provider = resolve_runtime_provider()
+# Kept as a compatibility alias for existing integrations/tests.
+ollama_base_url = runtime_provider.api_base if runtime_provider.provider == "ollama" else None
 litellm_params = {"drop_params": True}
-
-# If OLLAMA_BASE_URL is set, configure for local Ollama deployment
-ollama_base_url = os.getenv("OLLAMA_BASE_URL")
-if ollama_base_url:
-    litellm_params["api_base"] = ollama_base_url
-    print(f"🦙 Using local Ollama at: {ollama_base_url}")
+if runtime_provider.api_base:
+    litellm_params["api_base"] = runtime_provider.api_base
+if runtime_provider.reasoning_effort:
+    litellm_params["reasoning_effort"] = runtime_provider.reasoning_effort
+if runtime_provider.provider == "ollama":
+    print(f"🦙 Using local Ollama at: {runtime_provider.api_base}")
 
 ai_config = AIConfig(
-    model=os.getenv("DEFAULT_MODEL", "openrouter/deepseek/deepseek-chat-v3.1"),
-    api_key=os.getenv("OPENAI_API_KEY") or None,
-    api_base=ollama_base_url or None,
+    model=runtime_provider.model,
+    api_key=runtime_provider.api_key,
+    api_base=runtime_provider.api_base,
     temperature=float(os.getenv("TEMPERATURE", "0.6")),
     max_tokens=8192,
     litellm_params=litellm_params,
@@ -3344,4 +3349,9 @@ install_verified_deep_research(
 # ==============================================================================
 
 if __name__ == "__main__":
-    app.serve(auto_port=True, host="0.0.0.0")
+    # AgentField assigns PORT and uses it for readiness/registration.  Strict
+    # mode prevents a silent fallback to another port, which would leave the
+    # control plane pointing at an unreachable callback URL.
+    # The pinned AgentField SDK may run with an older Uvicorn that does not
+    # expose its newer websockets-sansio protocol name.
+    app.serve(host="0.0.0.0", auto_port=False, ws="websockets")

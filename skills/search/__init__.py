@@ -9,6 +9,7 @@ Supported Providers:
 - Tavily (TAVILY_API_KEY)
 - Firecrawl (FIRECRAWL_API_KEY)
 - Serper (SERPER_API_KEY)
+- RFC Editor (only an RFC explicitly named in the query; no credential)
 
 Usage:
     # Auto-detect provider
@@ -33,6 +34,7 @@ from .jina import JinaSearchProvider
 from .tavily import TavilySearchProvider
 from .firecrawl import FirecrawlSearchProvider
 from .serper import SerperSearchProvider
+from .rfc_editor import RFCEditorSearchProvider
 from .registry import (
     get_default_provider,
     get_provider,
@@ -292,6 +294,7 @@ __all__ = [
     "TavilySearchProvider",
     "FirecrawlSearchProvider",
     "SerperSearchProvider",
+    "RFCEditorSearchProvider",
     # Registry functions
     "get_default_provider",
     "get_provider",

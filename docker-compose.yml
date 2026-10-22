@@ -37,6 +37,7 @@ services:
       - PORT=8001
       # Callback URL for control plane to reach this agent
       - AGENT_CALLBACK_URL=http://deep-research:8001
+      - AGENTFIELD_STRICT_PORT=${AGENTFIELD_STRICT_PORT:-1}
       # LLM API Key (from .env file)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # Web Search API Keys (configure at least one)
@@ -47,7 +48,11 @@ services:
       # Optional: Force specific search provider
       - SEARCH_PROVIDER=${SEARCH_PROVIDER:-}
       # Model configuration
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-openrouter/deepseek/deepseek-chat-v3.1}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-}
+      # Optional Linux FCM broker configuration; runtime_provider selects the
+      # broker/fast-coding default when DEFAULT_MODEL is not explicitly set.
+      - LLM_BROKER_BASE_URL=${LLM_BROKER_BASE_URL:-}
+      - LLM_BROKER_API_KEY=${LLM_BROKER_API_KEY:-}
       - TEMPERATURE=${TEMPERATURE:-0.6}
       # Optional: Local Ollama configuration (set OLLAMA_BASE_URL to use local LLM)
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}

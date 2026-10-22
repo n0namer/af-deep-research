@@ -15,10 +15,11 @@ from .serper import SerperSearchProvider
 from .brave import BraveSearchProvider
 from .perplexity import PerplexitySearchProvider
 from .kagi import KagiSearchProvider
+from .rfc_editor import RFCEditorSearchProvider
 
 
 # Default priority order for providers
-DEFAULT_PROVIDER_PRIORITY = ["brave", "perplexity", "tavily", "kagi", "jina", "firecrawl", "serper"]
+DEFAULT_PROVIDER_PRIORITY = ["brave", "perplexity", "tavily", "kagi", "jina", "firecrawl", "serper", "rfc_editor"]
 
 # Registry of all available provider classes
 PROVIDER_CLASSES: Dict[str, Type[SearchProvider]] = {
@@ -29,6 +30,7 @@ PROVIDER_CLASSES: Dict[str, Type[SearchProvider]] = {
     "jina": JinaSearchProvider,
     "firecrawl": FirecrawlSearchProvider,
     "serper": SerperSearchProvider,
+    "rfc_editor": RFCEditorSearchProvider,
 }
 
 
