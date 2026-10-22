@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-09-30T07:40:27.279Z",
+  "projectRoot": "D:\\Users\\NIKITA\\Documents\\DEV\\worktrees\\afrt-deep-runtime",
+  "structure": {
+    "hasPackageJson": false,
+    "hasTsConfig": false,
+    "hasClaudeConfig": false,
+    "hasClaudeFlow": true
+  },
+  "scannedAt": 1790754027279
+}

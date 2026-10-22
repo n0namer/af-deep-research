@@ -1,0 +1,11 @@
+{
+  "ts": "2026-09-29T20:19:02.683Z",
+  "decision": "no_query",
+  "reason": "graph-missing",
+  "prompt_preview": "You are a CODER agent in a collaborative dual-mode swarm.\nPlatform: OpenAI Codex\nWorking Directory: D:\\Users\\NIKITA\\Documents\\DEV\\worktrees\\afrt-deep-runtime\nShared Memory Namespace: collaboration\n\nCO",
+  "artifact_path": "D:\\Users\\NIKITA\\Documents\\DEV\\worktrees\\afrt-deep-runtime\\.graphify-code\\graphify-out",
+  "changed_files": [
+    "docker-compose.yml",
+    "main.py"
+  ]
+}
