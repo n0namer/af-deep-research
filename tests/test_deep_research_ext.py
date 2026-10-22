@@ -146,8 +146,8 @@ def test_verification_bridge_promotes_only_source_entailed_verified_claims():
     async def fake_adjudicator(batch, strictness, **kwargs):
         assert strictness == "verified-only"
         return AIAssessmentList(assessments=[
-            AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
-            AIAssessment(fact_id=batch[1].fact_id, is_allowed=True, is_source_supported=False, is_verified=True, disagreement_score=0.0),
+            AIAssessment(fact_id=batch[0].fact_id, source_id=1, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
+            AIAssessment(fact_id=batch[1].fact_id, source_id=1, is_allowed=True, is_source_supported=False, is_verified=True, disagreement_score=0.0),
         ])
 
     verified = asyncio.run(verify_ledger_claims(ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator))
@@ -175,7 +175,7 @@ def test_verification_bridge_marks_supported_conflict_as_disputed_not_verified()
     ledger = build_evidence_ledger(package, ["R1"])
 
     async def fake_adjudicator(batch, strictness, **kwargs):
-        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.8)])
+        return AIAssessmentList(assessments=[AIAssessment(fact_id=batch[0].fact_id, source_id=1, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.8)])
 
     verified = asyncio.run(verify_ledger_claims(ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator))
     assert verified.claims[0].status == "disputed"
@@ -184,11 +184,81 @@ def test_verification_bridge_marks_supported_conflict_as_disputed_not_verified()
     assert assess_candidate_coverage(contract, verified).verified_coverage_ratio == 0.0
 
 
+def test_verification_bridge_rejects_assessment_without_source_identity():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.verification_bridge import verify_ledger_claims
+
+    package = {
+        "source_articles": [{"id": 1, "title": "Source", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x", "content": "Claim text."}],
+        "article_evidence": [{"article_id": 1, "facts": ["Claim text."], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, ["R1"])
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        return AIAssessmentList(assessments=[
+            AIAssessment(fact_id=batch[0].fact_id, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
+        ])
+
+    verified = asyncio.run(verify_ledger_claims(
+        ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator,
+    ))
+    assert verified.claims[0].status == "unverified"
+    assert verified.claims[0].support_state == "candidate_extracted"
+
+
+def test_verification_bridge_rejects_assessment_from_foreign_source():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.evidence_ledger import build_evidence_ledger
+    from reasoners.deep_research_ext.verification_bridge import verify_ledger_claims
+
+    package = {
+        "source_articles": [{"id": 1, "title": "Source", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x", "content": "Claim text."}],
+        "article_evidence": [{"article_id": 1, "facts": ["Claim text."], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, ["R1"])
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        return AIAssessmentList(assessments=[
+            AIAssessment(fact_id=batch[0].fact_id, source_id=999, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
+        ])
+
+    verified = asyncio.run(verify_ledger_claims(
+        ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator,
+    ))
+    assert verified.claims[0].status == "unverified"
+    assert verified.claims[0].support_state == "candidate_extracted"
+
+
+def test_verification_bridge_rejects_duplicate_fact_identity():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.evidence_ledger import EvidenceClaim, build_evidence_ledger
+    from reasoners.deep_research_ext.verification_bridge import verify_ledger_claims
+
+    package = {
+        "source_articles": [{"id": 1, "title": "Source", "url": "https://rfc-editor.org/rfc/rfc9000", "content_hash": "x", "content": "Claim text."}],
+        "article_evidence": [{"article_id": 1, "facts": ["Claim text."], "quotes": []}],
+    }
+    ledger = build_evidence_ledger(package, ["R1"])
+    duplicate = ledger.claims[0].model_copy(update={"text": "Same identity, different text."})
+    ledger = ledger.model_copy(update={"claims": [ledger.claims[0], duplicate]})
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        return AIAssessmentList(assessments=[
+            AIAssessment(fact_id=batch[0].fact_id, source_id=1, is_allowed=True, is_source_supported=True, is_verified=True, disagreement_score=0.0),
+        ])
+
+    verified = asyncio.run(verify_ledger_claims(
+        ledger=ledger, research_package=package, source_strictness="strict", adjudicator=fake_adjudicator,
+    ))
+    assert [claim.status for claim in verified.claims] == ["unverified", "unverified"]
+
+
 def test_continue_research_preserves_strictness_contract_and_child_policy():
     import ast
     from pathlib import Path
 
-    tree = ast.parse(Path('/app/main.py').read_text())
+    tree = ast.parse((Path(__file__).resolve().parents[1] / 'main.py').read_text(encoding='utf-8'))
     fn = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == 'continue_research')
     arg_names = [arg.arg for arg in fn.args.args]
     assert 'source_strictness' in arg_names
@@ -477,6 +547,77 @@ def test_final_verifier_accepts_when_every_material_claim_is_cited_and_entailed(
     assert state.passed is True
     assert state.supported_claim_count == 1
 
+
+def test_final_verifier_requires_unique_matching_assessment_fact_ids():
+    from doc_generation_pipeline import AIAssessment, AIAssessmentList
+    from reasoners.deep_research_ext.final_verifier import DraftClaim, DraftClaimList, verify_final_document
+
+    document = {
+        "executive_summary": "RFC 9000 specifies QUIC [1][2].",
+        "sections": [],
+        "source_notes": [
+            {"citation_id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000"},
+            {"citation_id": 2, "title": "RFC copy", "url": "https://example.org/rfc9000"},
+        ],
+    }
+    research = {
+        "source_articles": [
+            {"id": 1, "title": "RFC", "url": "https://rfc-editor.org/rfc/rfc9000", "content": "RFC 9000 specifies QUIC."},
+            {"id": 2, "title": "RFC copy", "url": "https://example.org/rfc9000", "content": "RFC 9000 specifies QUIC."},
+        ]
+    }
+
+    async def fake_extract(**kwargs):
+        return DraftClaimList(claims=[
+            DraftClaim(claim_id="D1", text="RFC 9000 specifies QUIC.", citation_ids=[1, 2])
+        ])
+
+    assessments = []
+
+    async def fake_adjudicator(batch, strictness, **kwargs):
+        assert [fact.fact_id for fact in batch] == ["D1:S1", "D1:S2"]
+        return AIAssessmentList(assessments=assessments)
+
+    def assessment(fact_id):
+        return AIAssessment(
+            fact_id=fact_id,
+            is_allowed=True,
+            is_source_supported=True,
+            is_verified=True,
+            disagreement_score=0.0,
+        )
+
+    for invalid_assessments in (
+        [assessment("")],
+        [assessment("D1:S1"), assessment("D1:S1")],
+        [assessment("D1:S999")],
+        [assessment("D2:S1")],
+        [assessment("D1:S2"), assessment("D2:S1")],
+    ):
+        assessments[:] = invalid_assessments
+        state = asyncio.run(verify_final_document(
+            document_package=document,
+            research_package=research,
+            source_strictness="strict",
+            ai_call=lambda **kwargs: None,
+            claim_extractor=fake_extract,
+            adjudicator=fake_adjudicator,
+        ))
+        assert state.passed is False
+        assert state.supported_claim_count == 0
+        assert state.unsupported_claims[0].reason == "cited_evidence_does_not_entail_claim"
+
+    assessments[:] = [assessment("D1:S2")]
+    state = asyncio.run(verify_final_document(
+        document_package=document,
+        research_package=research,
+        source_strictness="strict",
+        ai_call=lambda **kwargs: None,
+        claim_extractor=fake_extract,
+        adjudicator=fake_adjudicator,
+    ))
+    assert state.passed is True
+    assert state.supported_claim_count == 1
 
 
 def test_final_verifier_bounds_concurrency_and_preserves_claim_order_on_failures():

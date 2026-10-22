@@ -37,7 +37,7 @@ def select_federated_providers(provider_names: Optional[Sequence[str]] = None) -
     else:
         providers = get_available_providers()
 
-    max_providers = _bounded_int("SEARCH_FEDERATED_MAX_PROVIDERS", 2, 1, 8)
+    max_providers = _bounded_int("SEARCH_FEDERATED_MAX_PROVIDERS", 4, 1, 8)
     return providers[:max_providers]
 
 

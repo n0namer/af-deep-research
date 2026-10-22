@@ -1,0 +1,246 @@
+{
+  "schema_version": "afdr-native-multidomain-v1",
+  "as_of": "2026-10-19",
+  "profile": {
+    "research_focus": 1,
+    "research_scope": 1,
+    "max_research_loops": 1,
+    "max_gap_rounds": 0,
+    "num_parallel_streams": 1,
+    "analysis_depth": "EXECUTIVE_SUMMARY",
+    "source_strictness": "mixed"
+  },
+  "cases": [
+    {
+      "id": "net-http3",
+      "domain": "internet-standards",
+      "query": "Which official RFC defines HTTP/3, what is its RFC number, and which transport protocol does it use? Cite the RFC Editor specification.",
+      "required": [
+        [
+          "RFC 9114",
+          "9114"
+        ],
+        [
+          "HTTP/3"
+        ],
+        [
+          "QUIC"
+        ]
+      ],
+      "primary_domains": [
+        "rfc-editor.org",
+        "ietf.org"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "net-quic",
+      "domain": "internet-standards",
+      "query": "Which RFC specifies QUIC version 1 transport and in which year was that RFC published? Cite RFC Editor.",
+      "required": [
+        [
+          "RFC 9000",
+          "9000"
+        ],
+        [
+          "2021"
+        ],
+        [
+          "QUIC"
+        ]
+      ],
+      "primary_domains": [
+        "rfc-editor.org",
+        "ietf.org"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "security-aes",
+      "domain": "cybersecurity",
+      "query": "According to NIST FIPS 197, which three AES key lengths are defined? Give the standard number and key lengths.",
+      "required": [
+        [
+          "FIPS 197",
+          "FIPS-197"
+        ],
+        [
+          "128"
+        ],
+        [
+          "192"
+        ],
+        [
+          "256"
+        ]
+      ],
+      "primary_domains": [
+        "nist.gov",
+        "nvlpubs.nist.gov"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "space-apollo11",
+      "domain": "space-history",
+      "query": "On what date did Apollo 11 land on the Moon and who were the first two astronauts to walk there? Prefer NASA primary sources.",
+      "required": [
+        [
+          "July 20, 1969",
+          "20 July 1969",
+          "1969-07-20"
+        ],
+        [
+          "Neil Armstrong",
+          "Armstrong"
+        ],
+        [
+          "Buzz Aldrin",
+          "Aldrin"
+        ]
+      ],
+      "primary_domains": [
+        "nasa.gov"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "law-gdpr",
+      "domain": "law",
+      "query": "Identify the EU General Data Protection Regulation by regulation number and the date from which it applies. Cite EUR-Lex.",
+      "required": [
+        [
+          "2016/679"
+        ],
+        [
+          "25 May 2018",
+          "May 25, 2018",
+          "2018-05-25"
+        ]
+      ],
+      "primary_domains": [
+        "eur-lex.europa.eu",
+        "europa.eu"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "python-pep703",
+      "domain": "software-engineering",
+      "query": "Which Python Enhancement Proposal introduced optional GIL support for CPython, and what does GIL stand for? Cite the official Python PEP.",
+      "required": [
+        [
+          "PEP 703",
+          "703"
+        ],
+        [
+          "Global Interpreter Lock"
+        ]
+      ],
+      "primary_domains": [
+        "peps.python.org",
+        "python.org"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "climate-ipcc",
+      "domain": "climate-science",
+      "query": "What does the IPCC AR6 Synthesis Report 2023 conclude about human activities as a cause of global warming? Cite IPCC.",
+      "required": [
+        [
+          "human activities",
+          "human influence",
+          "human-caused"
+        ],
+        [
+          "unequivocal",
+          "unequivocally",
+          "definitely caused"
+        ]
+      ],
+      "primary_domains": [
+        "ipcc.ch"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "geology-valdivia",
+      "domain": "geology",
+      "query": "According to USGS, what were the magnitude and year of the largest instrumentally recorded earthquake in Valdivia, Chile?",
+      "required": [
+        [
+          "1960"
+        ],
+        [
+          "9.5",
+          "9,5"
+        ],
+        [
+          "Chile",
+          "Valdivia"
+        ]
+      ],
+      "primary_domains": [
+        "usgs.gov"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "health-malaria",
+      "domain": "public-health",
+      "query": "In what year did WHO recommend broad use of the RTS,S/AS01 malaria vaccine for children in sub-Saharan Africa? Cite WHO.",
+      "required": [
+        [
+          "2021"
+        ],
+        [
+          "RTS,S",
+          "RTS S"
+        ]
+      ],
+      "primary_domains": [
+        "who.int"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "astronomy-pluto",
+      "domain": "astronomy",
+      "query": "In what year did the International Astronomical Union classify Pluto as a dwarf planet?",
+      "required": [
+        [
+          "2006"
+        ],
+        [
+          "dwarf planet"
+        ]
+      ],
+      "primary_domains": [
+        "iau.org"
+      ],
+      "kind": "answerable"
+    },
+    {
+      "id": "negative-future-nobel",
+      "domain": "epistemic-future",
+      "query": "Name the person who WILL win the 2035 Nobel Prize in Chemistry, with an official citation. If it has not been announced as of October 2026, state clearly it cannot yet be known.",
+      "required": [],
+      "primary_domains": [
+        "nobelprize.org"
+      ],
+      "kind": "unanswerable"
+    },
+    {
+      "id": "negative-fake-rfc",
+      "domain": "epistemic-fabricated",
+      "query": "Which published RFC 99999 specifies HTTP/7? Provide its official RFC Editor URL. If there is no such published standard, state that the claim cannot be verified.",
+      "required": [],
+      "primary_domains": [
+        "rfc-editor.org",
+        "ietf.org"
+      ],
+      "kind": "unanswerable"
+    }
+  ]
+}

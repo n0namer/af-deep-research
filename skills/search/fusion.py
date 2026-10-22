@@ -19,10 +19,28 @@ def canonicalize_url(url: str) -> str:
     try:
         parts = urlsplit(value)
         scheme = parts.scheme.lower()
-        netloc = parts.netloc.lower()
-        path = parts.path or "/"
-        if path != "/":
-            path = path.rstrip("/") or "/"
+        hostname = (parts.hostname or "").lower()
+        if not scheme or not hostname:
+            return value.split("#", 1)[0].rstrip("/")
+
+        # Equivalent URLs must share one identity, while meaningful ports remain.
+        port = parts.port
+        default_port = (scheme == "http" and port == 80) or (
+            scheme == "https" and port == 443
+        )
+        netloc = hostname if not port or default_port else f"{hostname}:{port}"
+
+        # Resolve dot segments without changing the query or source semantics.
+        segments = []
+        for segment in (parts.path or "/").split("/"):
+            if segment in ("", "."):
+                continue
+            if segment == "..":
+                if segments:
+                    segments.pop()
+                continue
+            segments.append(segment)
+        path = "/" + "/".join(segments)
         query_pairs = []
         for key, val in parse_qsl(parts.query, keep_blank_values=True):
             lower = key.lower()
